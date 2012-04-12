@@ -4,9 +4,12 @@ class PostReceive extends Plugin
 {
 	public function action_ajax_update( $handler ) {
 		$users = Users::get();
+		$payload = $handler->handler_vars['payload'];
+		$decoded_payload = json_decode( $payload, true ); // true to return an array instead of an object.
+
         Post::create( array(
             'title' => "incoming POST",
-            'content' => serialize( $handler->handler_vars['payload'] ),
+            'content' => "payload is a " . gettype( $payload ) . ", and decoded, it is a " . gettype( $decoded_payload ),
             'content_type' => Post::type( 'entry' ),
             'user_id' => $users[0]->id,
         ));
