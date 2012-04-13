@@ -58,18 +58,19 @@ class PostReceive extends Plugin
 	}
 
 	public static function make_post_from_XML( $xml = null ) {
+		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
 		$post = Post::create( array(
 			'content_type' => Post::type( 'addon' ),
 			'title' => $xml->name,
-			'content' => (string) $xml->pluggable['type'] . "\n" . $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
+			'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
 			'status' => Post::status( 'published' ),
-			'tags' => array( (string) $xml->pluggable->attributes()->type ),
+			'tags' => array( $type ),
 			'pubdate' => HabariDateTime::date_create(),
 			'user_id' => User::get( 'github_hook' )->id,
 			'slug' => Utils::slugify( $xml->name ),
 		) );
 
-		$post->info->type = "plugin"; // why doesn't this work? (string) $xml->pluggable['type']; or this? (string) $xml->pluggable->attributes()->type;
+		$post->info->type = $type;
 		$post->info->guid = (string) $xml->guid;
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
 		$post->info->author = (string) $xml->author; // @TODO: be ready for more than one
