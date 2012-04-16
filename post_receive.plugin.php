@@ -73,9 +73,20 @@ class PostReceive extends Plugin
 		$post->info->type = $type;
 		$post->info->guid = (string) $xml->guid;
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
-		$post->info->author = (string) $xml->author; // @TODO: be ready for more than one
-		$post->info->author_url = (string) $xml->author->attributes()->url;
-		$post->info->license = Post::get( array( 'title' => "{$xml->license}" ) )->info->shortname;
+
+		$author_array = array();
+
+/* There oughta be a foreach */
+		array_push( $author_array, array( 'name' => (string) $xml->author, 'url' => (string) $xml->author->attributes()->url ) );
+
+//		$post->info->author = (string) $xml->author; // @TODO: be ready for more than one
+//		$post->info->author_url = (string) $xml->author->attributes()->url;
+
+		$post->info->authors = $author_array;
+
+		// should probably test this. Wrong/invalid license should do something...
+		$post->info->license = Post::get( array( 'has:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) )->info->shortname;
+
 		$post->info->commit();
 
 		$versions = array(
@@ -92,7 +103,36 @@ class PostReceive extends Plugin
 				'release' => '',
 			),
 		);
-		$this->save_versions( $post, $versions );
+		PluginDirectoryExtender::save_version( $post, $versions );
+	}
+}
+
+class PluginDirectoryExtender extends PluginDirectory {
+
+	// This should only be running on a single version - commit should be for a single branch or master.
+
+	private static $vocabulary = "Addon versions";
+
+	public static function save_version( $post = null, $versions = array() ) {
+
+		if( isset( $post ) && count( $versions ) !== 0 ) {
+
+			$vocabulary = Vocabulary::get( self::$vocabulary );
+
+			foreach( $versions as $key => $version ) {
+				$term = new Term( array(
+					'term_display' => $post->id . " $key",
+				) );
+				foreach ( $version as $field => $value ) {
+					$term->info->$field = $value;
+				}
+				$vocabulary->add_term( $term );
+				$term->associate( 'addon', $post->id );
+			}
+		}
+		else {
+			// post didn't work or there was no version.
+		}
 	}
 }
 ?>
