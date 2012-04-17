@@ -39,7 +39,7 @@ class PostReceive extends Plugin
 
 				$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement', LIBXML_NOCDATA );
 
-/* can't hurt to hold onto this. */
+/* can't hurt to hold onto this, though lacking the CDATA (stripped above) might be annoying. */
 				$xml_object->addChild( "xml_string", $xml_object->asXML() );
 /* won't always need these */
 				$xml_object->addChild( "tree_url", $tree_URL );
@@ -58,6 +58,16 @@ class PostReceive extends Plugin
 	}
 
 	public static function make_post_from_XML( $xml = null ) {
+		$guid = (string) $xml->guid;
+		$post = Post::get( array( 'status'=>Post::status('published'), 'all:info'=>array( 'guid'=>$guid ) ) );
+
+		if ( count( $post ) === 1 ) {
+			// Update the post instead of creating it.
+		}
+		else {
+			// Post::get returned more than one, or none.
+		}
+
 		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
 		$post = Post::create( array(
 			'content_type' => Post::type( 'addon' ),
