@@ -61,11 +61,14 @@ class PostReceive extends Plugin
 		$guid = (string) $xml->guid;
 		$post = Post::get( array( 'status'=>Post::status('published'), 'all:info'=>array( 'guid'=>$guid ) ) );
 
-		if ( count( $post ) === 1 ) {
+		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
+
+
+		if ( $post !== false ) {
+			$post = Post::get( $post->id );
 			$post->modify( array(
 				'title' => $xml->name,
 				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
-				'tags' => array( $type ),
 				'pubdate' => HabariDateTime::date_create(),
 				'slug' => Utils::slugify( $xml->name ),
 			) );
@@ -74,19 +77,18 @@ class PostReceive extends Plugin
 		}
 		else {
 			// Post::get returned more than one, or none.
+			unset( $post );
+			$post = Post::create( array(
+				'content_type' => Post::type( 'addon' ),
+				'title' => $xml->name,
+				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
+				'status' => Post::status( 'published' ),
+				'tags' => array( $type ),
+				'pubdate' => HabariDateTime::date_create(),
+				'user_id' => User::get( 'github_hook' )->id,
+				'slug' => Utils::slugify( $xml->name ),
+			) );
 		}
-
-		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
-		$post = Post::create( array(
-			'content_type' => Post::type( 'addon' ),
-			'title' => $xml->name,
-			'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
-			'status' => Post::status( 'published' ),
-			'tags' => array( $type ),
-			'pubdate' => HabariDateTime::date_create(),
-			'user_id' => User::get( 'github_hook' )->id,
-			'slug' => Utils::slugify( $xml->name ),
-		) );
 
 /* won't always need these */
 		$post->info->blob_url = (string) $xml->blob_url;

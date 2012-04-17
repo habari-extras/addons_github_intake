@@ -2,7 +2,6 @@
 <pluggable type="plugin" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://schemas.habariproject.org/pluggable/0.8">
 	<name>Post-Receive Hook Handler</name>
 	<license url="http://www.apache.org/licenses/LICENSE-2.0.html">Apache Software License 2.0</license>
-	<license url="http://www.opensource.org/licenses/MIT">MIT License</license>
 	<author url="http://habariproject.org/">The Habari Community</author>
 	
 	<version>1.0</version>
