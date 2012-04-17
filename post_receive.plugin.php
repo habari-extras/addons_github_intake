@@ -27,7 +27,7 @@ class PostReceive extends Plugin
 
 			$decoded_tree = json_decode( file_get_contents( $tree_URL, 0, null, null ) );
 			$xml_urls = array_map( function( $a ) {
-					if ( strpos( $a->path, ".plugin.xml" ) !== false ) {
+					if ( strpos( $a->path, ".plugin.xml" ) !== false || $a->path === 'theme.xml' ) {
 						return$a->url; // path was just the filename, url is the API endpoint for the file itself
 					}
 				}, $decoded_tree->tree );
