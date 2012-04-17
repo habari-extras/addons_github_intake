@@ -11,6 +11,8 @@ class PostReceive extends Plugin
 			// Invalid decoded JSON is NULL.
 			$commit_sha = $decoded_payload->after;
 			$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
+			$repo_URL = $decoded_payload->repository->url;
+
 			$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
 				"/" . $decoded_payload->repository->name . "/git/trees/$commit_sha";
 
@@ -22,9 +24,9 @@ class PostReceive extends Plugin
 				}, $decoded_tree->tree );
 			$xml_urls = array_filter( $xml_urls ); // remove NULLs
 			if ( count( $xml_urls ) === 1 ) {
-				$xml_url = array_pop( $xml_urls );
+				$xml_URL = array_pop( $xml_urls );
 
-				$decoded_blob = json_decode( file_get_contents( $xml_url, 0, null, null ) );
+				$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
 
 				if ( $decoded_blob->encoding === 'base64' ) {
 					$xml_data = base64_decode( $decoded_blob->content );
@@ -43,7 +45,10 @@ class PostReceive extends Plugin
 				$xml_object->addChild( "xml_string", $xml_object->asXML() );
 /* won't always need these */
 				$xml_object->addChild( "tree_url", $tree_URL );
-				$xml_object->addChild( "blob_url", $xml_url );
+				$xml_object->addChild( "blob_url", $xml_URL );
+
+/* might need this. Or should it go in downloadurl? */
+				$xml_object->addChild( "repo_url", $repo_URL );
 
 /* need to check if there's already a posts with this guid */
 				self::make_post_from_XML( $xml_object );
@@ -93,6 +98,7 @@ class PostReceive extends Plugin
 /* won't always need these */
 		$post->info->blob_url = (string) $xml->blob_url;
 		$post->info->tree_url = (string) $xml->tree_url;
+		$post->info->repo_url = (string) $xml->repo_url;
 		$post->info->xml = (string) $xml->xml_string;
 
 		$post->info->type = $type;
