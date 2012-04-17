@@ -87,8 +87,10 @@ class PostReceive extends Plugin
 		$post->info->authors = $temporary_array;
 
 		$temporary_array = array();
-		$license_post = Post::get( array( 'all:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) );
-		array_push( $temporary_array, $license_post->info->shortname );
+
+		foreach( $xml->license as $license ) {
+			array_push( $temporary_array, array( 'name' => (string) $license, 'url' => (string) $license->attributes()->url ) );
+		}
 
 		$post->info->licenses = $temporary_array;
 
