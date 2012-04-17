@@ -6,7 +6,7 @@
 	
 	<version>1.0</version>
 	<url>http://habariproject.org/</url>
-	<description><![CDATA[Consume JSON provided by Github.]]></description>
+	<description><![CDATA[Consume JSON provided by Github and turn it into addons managed by the Addon Directory plugin.]]></description>
 
 	<copyright>2012</copyright>
 	<guid>9db29015-29e7-429b-b2b4-385b5c84ccd4</guid>
