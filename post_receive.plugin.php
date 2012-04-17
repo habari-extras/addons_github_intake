@@ -38,16 +38,14 @@ class PostReceive extends Plugin
 				}
 
 				$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement', LIBXML_NOCDATA );
-/*
-		Post::create( array(
-		'title' => $xml_object->name,
-		'content' => "payload is a " . gettype( $payload ) . ", and decoded, it is a " . gettype( $decoded_payload ) . "\n" . $xml_url . "\n" . $xml_data, 
-		'content_type' => Post::type( 'entry' ),
-		'user_id' => $users[0]->id,
-		));
-*/
-				// check if there's already a posts with this guid
 
+/* can't hurt to hold onto this. */
+				$xml_object->addChild( "xml_string", $xml_object->asXML() );
+/* won't always need these */
+				$xml_object->addChild( "tree_url", $tree_URL );
+				$xml_object->addChild( "blob_url", $xml_url );
+
+/* need to check if there's already a posts with this guid */
 				self::make_post_from_XML( $xml_object );
 			}
 			else {
@@ -72,28 +70,25 @@ class PostReceive extends Plugin
 			'slug' => Utils::slugify( $xml->name ),
 		) );
 
+/* won't always need these */
+		$post->info->blob_url = (string) $xml->blob_url;
+		$post->info->tree_url = (string) $xml->tree_url;
+		$post->info->xml = (string) $xml->xml_string;
+
 		$post->info->type = $type;
 		$post->info->guid = (string) $xml->guid;
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
 
 		$temporary_array = array();
 
-/* This foreach doesn't seem to work  */
 		foreach( $xml->author as $author ) {
 			array_push( $temporary_array, array( 'name' => (string) $author, 'url' => (string) $author->attributes()->url ) );
 		}
-//		$post->info->author = (string) $xml->author; // @TODO: be ready for more than one
-//		$post->info->author_url = (string) $xml->author->attributes()->url;
-
 		$post->info->authors = $temporary_array;
-
-		// should probably test this. Wrong/invalid license should do something...
 
 		$temporary_array = array();
 		$license_post = Post::get( array( 'all:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) );
 		array_push( $temporary_array, $license_post->info->shortname );
-
-//		$post->info->license = Post::get( array( 'has:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) )->info->shortname;
 
 		$post->info->licenses = $temporary_array;
 
