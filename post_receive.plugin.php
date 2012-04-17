@@ -64,7 +64,7 @@ class PostReceive extends Plugin
 		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
 
 
-		if ( $post !== false ) {
+		if ( $post !== false && $post->info->guid === $guid ) { // the latter test has not stopped posts from being overwritten
 			$post = Post::get( $post->id );
 			$post->modify( array(
 				'title' => $xml->name,
