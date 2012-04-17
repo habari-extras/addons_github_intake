@@ -46,6 +46,8 @@ class PostReceive extends Plugin
 		'user_id' => $users[0]->id,
 		));
 */
+				// check if there's already a posts with this guid
+
 				self::make_post_from_XML( $xml_object );
 			}
 			else {
@@ -74,18 +76,26 @@ class PostReceive extends Plugin
 		$post->info->guid = (string) $xml->guid;
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
 
-		$author_array = array();
+		$temporary_array = array();
 
-/* There oughta be a foreach */
-		array_push( $author_array, array( 'name' => (string) $xml->author, 'url' => (string) $xml->author->attributes()->url ) );
-
+/* This foreach doesn't seem to work  */
+		foreach( $xml->author as $author ) {
+			array_push( $temporary_array, array( 'name' => (string) $author, 'url' => (string) $author->attributes()->url ) );
+		}
 //		$post->info->author = (string) $xml->author; // @TODO: be ready for more than one
 //		$post->info->author_url = (string) $xml->author->attributes()->url;
 
-		$post->info->authors = $author_array;
+		$post->info->authors = $temporary_array;
 
 		// should probably test this. Wrong/invalid license should do something...
-		$post->info->license = Post::get( array( 'has:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) )->info->shortname;
+
+		$temporary_array = array();
+		$license_post = Post::get( array( 'all:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) );
+		array_push( $temporary_array, $license_post->info->shortname );
+
+//		$post->info->license = Post::get( array( 'has:info' => array( 'url' => (string) $xml->license->attributes()->url ) ) )->info->shortname;
+
+		$post->info->licenses = $temporary_array;
 
 		$post->info->commit();
 
