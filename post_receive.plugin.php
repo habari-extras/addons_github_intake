@@ -62,6 +62,14 @@ class PostReceive extends Plugin
 		$post = Post::get( array( 'status'=>Post::status('published'), 'all:info'=>array( 'guid'=>$guid ) ) );
 
 		if ( count( $post ) === 1 ) {
+			$post->modify( array(
+				'title' => $xml->name,
+				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
+				'tags' => array( $type ),
+				'pubdate' => HabariDateTime::date_create(),
+				'slug' => Utils::slugify( $xml->name ),
+			) );
+			$post->update();
 			// Update the post instead of creating it.
 		}
 		else {
