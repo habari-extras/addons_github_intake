@@ -37,9 +37,9 @@ class PostReceive extends Plugin
 					return;
 				}
 
-				$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement', LIBXML_NOCDATA );
+				$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
 
-/* can't hurt to hold onto this, though lacking the CDATA (stripped above) might be annoying. */
+/* can't hurt to hold onto this */
 				$xml_object->addChild( "xml_string", $xml_object->asXML() );
 /* won't always need these */
 				$xml_object->addChild( "tree_url", $tree_URL );
