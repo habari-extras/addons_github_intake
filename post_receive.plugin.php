@@ -2,6 +2,15 @@
 
 class PostReceive extends Plugin
 {
+	public function filter_rewrite_rules($rules) {
+		$rules['git_post_receive'] = RewriteRule::create_url_rule('"update"', 'PluginHandler', 'addon_update');
+		return $rules;
+	}
+
+	public function action_plugin_act_addon_update($handler) {
+		$this->action_ajax_update($handler);
+	}
+
 	public function action_ajax_update( $handler ) {
 		$users = Users::get();
 		$payload = $handler->handler_vars->raw('payload');
