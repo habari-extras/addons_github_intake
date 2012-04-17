@@ -162,16 +162,35 @@ class PluginDirectoryExtender extends PluginDirectory {
 		if( isset( $post ) && count( $versions ) !== 0 ) {
 
 			$vocabulary = Vocabulary::get( self::$vocabulary );
+			$extant_terms = $vocabulary->get_associations($post->id, 'addon');
 
 			foreach( $versions as $key => $version ) {
-				$term = new Term( array(
-					'term_display' => $post->id . " $key",
-				) );
+
+				$term_display = $post->id . " {$key}";
+
+				$found = false;
+				foreach($extant_terms as $eterm) {
+					if($eterm->term_display == $term_display) {  // This is super-cheesy!
+						$found = true;
+						$term = $eterm;
+						break;
+					}
+				}
+				if(!$found) {
+					$term = new Term( array(
+						'term_display' => $post->id . " $key",
+					) );
+				}
 				foreach ( $version as $field => $value ) {
 					$term->info->$field = $value;
 				}
-				$vocabulary->add_term( $term );
-				$term->associate( 'addon', $post->id );
+				if($found) {
+					$term->update();
+				}
+				else {
+					$vocabulary->add_term( $term );
+					$term->associate( 'addon', $post->id );
+				}
 			}
 		}
 		else {
