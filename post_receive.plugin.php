@@ -70,7 +70,8 @@ class PostReceive extends Plugin
 
 
 		if ( $post !== false && $post->info->guid === $guid ) { // the latter test has not stopped posts from being overwritten
-			$post = Post::get( $post->id );
+			$post = Post::get( 'id=' . $post->id );
+			EventLog::log( _t('Editing post #%s - %s', array($post->id, $post->title)),'info');
 			$post->modify( array(
 				'title' => $xml->name,
 				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
@@ -81,6 +82,7 @@ class PostReceive extends Plugin
 			// Update the post instead of creating it.
 		}
 		else {
+			EventLog::log( _t('Creating a new post for %s', array((string)$xml->name)),'info');
 			// Post::get returned more than one, or none.
 			unset( $post );
 			$post = Post::create( array(
