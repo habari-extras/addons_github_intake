@@ -133,17 +133,28 @@ class PostReceive extends Plugin
 
 		$post->info->commit();
 
+		$features = array();
+		foreach( array( "conflicts", "provides", "recommends", "requires" ) as $feature ) {
+			if ( isset( $xml->$feature ) ) {
+				$features[ $feature ] = array();
+				foreach( $xml->$feature as $one_feature ) {
+					array_push( $features[ $feature ], (string) $one_feature->feature );
+				}
+			}
+		}
+
 		$versions = array(
 			(string) $xml->version => array(
 				'version' => (string) $xml->version,
 				'description' => (string) $xml->description,
 				'info_url' => (string) $xml->url, // dupe of above, not great.
-				'url' => (string) $xml->downloadurl,
+				'url' => "{$xml->repo_url}/downloads" ,
 				'habari_version' => '0.8.x', // hardcode for now
 				'severity' => 'feature', // hardcode for now
-				'requires' => '',
-				'provides' => '',
-				'recommends' => '',
+				'requires' => isset( $features['requires'] ) ? $features['requires'] : '',
+				'provides' => isset( $features['provides'] ) ? $features['provides'] : '',
+				'recommends' => isset( $features['recommends'] ) ? $features['recommends'] : '',
+				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
 				'release' => '',
 			),
 		);
