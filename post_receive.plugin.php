@@ -69,6 +69,7 @@ class PostReceive extends Plugin
 		else {
 			// Something has gone wrong with the json_decode. Do nothing, since there is nothing that can really be done.
 		}
+
 	}
 
 	public static function make_post_from_XML( $xml = null ) {
