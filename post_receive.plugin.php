@@ -55,6 +55,7 @@ class PostReceive extends Plugin
 /* won't always need these */
 				$xml_object->addChild( "tree_url", $tree_URL );
 				$xml_object->addChild( "blob_url", $xml_URL );
+				$xml_object->addChild( "ping_contents", $decoded_payload );
 
 /* might need this. Or should it go in downloadurl? */
 				$xml_object->addChild( "repo_url", $repo_URL );
@@ -132,7 +133,9 @@ class PostReceive extends Plugin
 		$post->info->blob_url = (string) $xml->blob_url;
 		$post->info->tree_url = (string) $xml->tree_url;
 		$post->info->repo_url = (string) $xml->repo_url;
+
 		$post->info->xml = (string) $xml->xml_string;
+		$post->info->json = (string) $xml->ping_contents;
 
 		$post->info->type = $type;
 		$post->info->guid = strtoupper($xml->guid);
@@ -165,13 +168,19 @@ class PostReceive extends Plugin
 			}
 		}
 
+		$habari_version = "?.?.?";
+		$version_version = (string) $xml->version;
+		if( strpos( $version_version, "-" ) !== false ) {
+			list( $habari_version, $version_version ) = explode( "-", $version_version );
+		}
+
 		$versions = array(
 			(string) $xml->version => array(
-				'version' => (string) $xml->version,
+				'version' => $version_version,
 				'description' => (string) $xml->description,
 				'info_url' => (string) $xml->url, // dupe of above, not great.
 				'url' => "{$xml->repo_url}/downloads" ,
-				'habari_version' => '0.8.x', // hardcode for now
+				'habari_version' => $habari_version,
 				'severity' => 'feature', // hardcode for now
 				'requires' => isset( $features['requires'] ) ? $features['requires'] : '',
 				'provides' => isset( $features['provides'] ) ? $features['provides'] : '',
