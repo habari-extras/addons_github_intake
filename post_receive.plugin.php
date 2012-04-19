@@ -60,16 +60,17 @@ class PostReceive extends Plugin
 				$xml_object->addChild( "repo_url", $repo_URL );
 
 /* need to check if there's already a posts with this guid */
-				if(trim($xml_object->guid) == '') {
+				if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
 					// You must have a GUID or we can't find your plugin...
 					// @todo Send the owner an error message/file an issue on the repo
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
 						'Info XML needs a GUID',
-						'Habari addons require a GUID to be listed in the Addons Directory.\\nPlease create and add a GUID to your xml file. You can use this one, which is new:\\n' . UUID::get()
+						"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . UUID::get() . "</b>"
 					);
 				}
 				else {
+					EventLog::log( _t('Making post for GUID %s', array(trim($xml_object->guid))),'info');
 					self::make_post_from_XML( $xml_object );
 				}
 			}
