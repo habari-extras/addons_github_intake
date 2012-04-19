@@ -113,7 +113,6 @@ class PostReceive extends Plugin
 
 		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
 
-
 		if ( $post !== false && $post->info->guid === $guid ) { // the latter test has not stopped posts from being overwritten
 			$post = Post::get( 'id=' . $post->id );
 			EventLog::log( _t('Editing post #%s - %s', array($post->id, $post->title)),'info');
@@ -155,6 +154,9 @@ class PostReceive extends Plugin
 		$post->info->type = $type;
 		$post->info->guid = strtoupper($xml->guid);
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
+
+		// This may be a dangerous assumption, but the first help value should be English and not "Configure".
+		$post->info->help = (string) $xml->help->value;
 
 		$temporary_array = array();
 
