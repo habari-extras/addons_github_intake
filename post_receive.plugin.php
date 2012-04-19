@@ -60,7 +60,18 @@ class PostReceive extends Plugin
 				$xml_object->addChild( "repo_url", $repo_URL );
 
 /* need to check if there's already a posts with this guid */
-				self::make_post_from_XML( $xml_object );
+				if(trim($xml_object->guid) == '') {
+					// You must have a GUID or we can't find your plugin...
+					// @todo Send the owner an error message/file an issue on the repo
+					$this->file_issue(
+						$owner, $decoded_payload->repository->name,
+						'Info XML needs a GUID',
+						'Habari addons require a GUID to be listed in the Addons Directory.\\nPlease create and add a GUID to your xml file. You can use this one, which is new:\\n' . UUID::get()
+					);
+				}
+				else {
+					self::make_post_from_XML( $xml_object );
+				}
 			}
 			else {
 				// Wrong number of xml files.
@@ -72,8 +83,17 @@ class PostReceive extends Plugin
 
 	}
 
+	public static function file_issue($user, $repo, $title, $body, $tag = 'bug') {
+		EventLog::log( _t('Filed issue for %s/%s - %s', array($user, $repo, $title)),'info');
+		$gitpassword = Options::get('habariupdatebot_password');
+		$rr = new RemoteRequest("https://HabariUpdateBot:{$gitpassword}@api.github.com/repos/{$user}/{$repo}/issues", 'POST');
+		$rr->set_body('{"title": "' . addslashes($title) . '","body": "' . addslashes($body) . '","labels":["' . addslashes($tag) . '"]}');
+		$rr->execute();
+	}
+
 	public static function make_post_from_XML( $xml = null ) {
-		$guid = (string) $xml->guid;
+		$guid = strtoupper($xml->guid);
+
 		$post = Post::get( array( 'status'=>Post::status('published'), 'all:info'=>array( 'guid'=>$guid ) ) );
 
 		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
@@ -114,7 +134,7 @@ class PostReceive extends Plugin
 		$post->info->xml = (string) $xml->xml_string;
 
 		$post->info->type = $type;
-		$post->info->guid = (string) $xml->guid;
+		$post->info->guid = strtoupper($xml->guid);
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
 
 		$temporary_array = array();
