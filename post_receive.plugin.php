@@ -12,9 +12,7 @@ class PostReceive extends Plugin
 		}
 	}
 
-	public function action_plugin_activation( $file ) {
-		// should github_hook be deleted?
-		// User::get_by_name( 'github_hook' )->delete();
+	public function action_plugin_deactivation( $file ) {
 	}
 
 	public function filter_rewrite_rules($rules) {
