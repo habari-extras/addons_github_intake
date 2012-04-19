@@ -2,6 +2,21 @@
 
 class PostReceive extends Plugin
 {
+	public function action_plugin_activation( $file ) {
+		if( ! User::get_by_name( 'github_hook' ) ) {
+			User::create( array(
+				'username' => 'github_hook',
+				'email' => 'addons@habariproject.org',
+				'password' => sha1( rand( 0, pow( 2,32 ))),
+			));
+		}
+	}
+
+	public function action_plugin_activation( $file ) {
+		// should github_hook be deleted?
+		// User::get_by_name( 'github_hook' )->delete();
+	}
+
 	public function filter_rewrite_rules($rules) {
 		$rules['git_post_receive'] = RewriteRule::create_url_rule('"update"', 'PluginHandler', 'addon_update');
 		return $rules;
