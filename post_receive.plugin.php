@@ -115,7 +115,7 @@ class PostReceive extends Plugin
 		}
 		else {
 			EventLog::log( _t('Creating a new post for %s', array((string)$xml->name)),'info');
-			// Post::get returned more than one, or none.
+			// Post::get returned no post.
 			unset( $post );
 			$post = Post::create( array(
 				'content_type' => Post::type( 'addon' ),
@@ -127,6 +127,8 @@ class PostReceive extends Plugin
 				'user_id' => User::get( 'github_hook' )->id,
 				'slug' => Utils::slugify( $xml->name ),
 			) );
+			// This won't change. It's not authoritative; merely the first one to ping in.
+			$post->info->original_repo = (string) $xml->repo_url;
 		}
 
 /* won't always need these */
