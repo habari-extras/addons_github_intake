@@ -90,6 +90,11 @@ class PostReceive extends Plugin
 			}
 			else {
 				// Wrong number of xml files.
+				$this->file_issue(
+					$owner, $decoded_payload->repository->name,
+					'Too many XML files',
+					"Habari addons should have a single XML file containing addon information.<br>"
+				);
 			}
 		}
 		else {
