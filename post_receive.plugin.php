@@ -230,7 +230,7 @@ class PluginDirectoryExtender extends PluginDirectory {
 
 			foreach( $versions as $key => $version ) {
 
-				$term_display = $post->id . " {$key}";
+				$term_display = "{$post->id} {$key} {$post->info->repo_url}";
 
 				$found = false;
 				foreach($extant_terms as $eterm) {
