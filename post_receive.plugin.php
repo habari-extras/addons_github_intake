@@ -63,12 +63,12 @@ class PostReceive extends Plugin
 
 				$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
 
-/* can't hurt to hold onto this */
+/* can't hurt to hold onto these */
 				$xml_object->addChild( "xml_string", $xml_object->asXML() );
 /* won't always need these */
 				$xml_object->addChild( "tree_url", $tree_URL );
 				$xml_object->addChild( "blob_url", $xml_URL );
-				$xml_object->addChild( "ping_contents", $decoded_payload );
+				$xml_object->addChild( "ping_contents", $payload );
 
 /* might need this. Or should it go in downloadurl? */
 				$xml_object->addChild( "repo_url", $repo_URL );
