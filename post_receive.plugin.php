@@ -2,6 +2,9 @@
 
 class PostReceive extends Plugin
 {
+	// this will be used with the /i option
+	const VERSION_REGEX = '((?:\d+|alpha|beta|a|b|rc|p|pl)(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl))*(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl|x)))-((?:\d+|alpha|beta|a|b|rc|p|pl)(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl))*(?:\.(?:(?:\d+|alpha|beta|a|b|rc|p|pl|x)))(?:-\w+)?)';
+
 	public function action_plugin_activation( $file ) {
 		if( ! User::get_by_name( 'github_hook' ) ) {
 			User::create( array(
@@ -193,7 +196,28 @@ class PostReceive extends Plugin
 		$habari_version = "?.?.?";
 		$version_version = (string) $xml->version;
 		if( strpos( $version_version, "-" ) !== false ) {
+			// could replace the following with a preg_match( '%'.self::VERSION_REGEX.'%i'..., but is that altogether necessary?
 			list( $habari_version, $version_version ) = explode( "-", $version_version );
+		}
+
+
+		// Handle version in tag, if present.
+		$tag_ref = json_decode( $xml->ping_contents )->ref;
+		if( $tag_ref !== "refs/head/master" ) {
+			// only deal with tags in the version-number format. This likely ignores branches.
+			if( preg_match( '%(ref/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
+				if( (string) $xml->version !== $matches[2] ) { // 2 is everything after ref/tags
+					$this->file_issue(
+						$owner, $decoded_payload->repository->name,
+						'XML/tag version mismatch',
+						"The version number specified in the XML file ({$xml->version}) and the one from the tag ({$matches[2]}) should match."
+					);
+				}
+
+				// Now, do something with the version from the tag. The following lines replace any version set from the XML <version>
+				$habari_version = $matches[3];
+				$version_version = $matches[4];
+			}
 		}
 
 		$versions = array(
@@ -201,7 +225,7 @@ class PostReceive extends Plugin
 				'version' => $version_version,
 				'description' => (string) $xml->description,
 				'info_url' => (string) $xml->url, // dupe of above, not great.
-				'url' => "{$xml->repo_url}/downloads" ,
+				'url' => "{$xml->repo_url}/downloads" , // this is bad - or at least, github-specific.
 				'habari_version' => $habari_version,
 				'severity' => 'feature', // hardcode for now
 				'requires' => isset( $features['requires'] ) ? $features['requires'] : '',
