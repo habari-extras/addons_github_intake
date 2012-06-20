@@ -163,6 +163,22 @@ class PostReceive extends Plugin
 		$post->info->guid = strtoupper($xml->guid);
 		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
 
+		if ( $type === "theme" && isset( $xml->parent ) ) {
+			// store the name of the parent theme, if there is one.
+			$parent = (string) $xml->parent;
+			$post->info->parent_theme = $parent;
+
+			// now, check if the parent is already included. If not, log an issue.
+			if ( Post::get( array( 'title' => $parent, 'count' => 1 ) === 0 ) {
+				// @TODO: Check if it is a Habari core theme before filing the issue.
+				$this->file_issue(
+					$owner, $decoded_payload->repository->name,
+					'Unkown parent',
+					"The parent theme ($parent) is not found."
+				);
+			}
+		}
+
 		// This may be a dangerous assumption, but the first help value should be English and not "Configure".
 		$post->info->help = (string) $xml->help->value;
 
