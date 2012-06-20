@@ -169,11 +169,11 @@ class PostReceive extends Plugin
 			$post->info->parent_theme = $parent;
 
 			// now, check if the parent is already included. If not, log an issue.
-			if ( Post::get( array( 'title' => $parent, 'count' => 1 ) === 0 ) {
+			if ( Post::get( array( 'title' => $parent, 'count' => 1 ) === 0 ) ) {
 				// @TODO: Check if it is a Habari core theme before filing the issue.
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
-					'Unkown parent',
+					'Unknown parent',
 					"The parent theme ($parent) is not found."
 				);
 			}
