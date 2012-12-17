@@ -222,7 +222,7 @@ class PostReceive extends Plugin
 		if( $tag_ref !== "refs/head/master" ) {
 			// only deal with tags in the version-number format. This likely ignores branches.
 			if( preg_match( '%(ref/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
-				if( (string) $xml->version !== $matches[2] ) { // 2 is everything after ref/tags
+				if( $version_version !== $matches[2] ) { // 2 is everything after ref/tags
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
 						'XML/tag version mismatch',
