@@ -48,56 +48,61 @@ class PostReceive extends Plugin
 					}
 				}, $decoded_tree->tree );
 			$xml_urls = array_filter( $xml_urls ); // remove NULLs
-			if ( count( $xml_urls ) === 1 ) {
-				$xml_URL = array_pop( $xml_urls );
 
-				$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
-
-				if ( $decoded_blob->encoding === 'base64' ) {
-					$xml_data = base64_decode( $decoded_blob->content );
-				}
-				else if ( $decoded_blob->encoding === 'utf-8' ) {
-					// does it need to be decoded?
-				}
-				else {
-					// there's an invalid encoding.
-					return;
-				}
-
-				$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
-
-/* can't hurt to hold onto these */
-				$xml_object->addChild( "xml_string", $xml_object->asXML() );
-/* won't always need these */
-				$xml_object->addChild( "tree_url", $tree_URL );
-				$xml_object->addChild( "blob_url", $xml_URL );
-				$xml_object->addChild( "ping_contents", $payload );
-
-/* might need this. Or should it go in downloadurl? */
-				$xml_object->addChild( "repo_url", $repo_URL );
-
-/* need to check if there's already a posts with this guid */
-				if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
-					// You must have a GUID or we can't find your plugin...
-					// @todo Send the owner an error message/file an issue on the repo
-					$this->file_issue(
-						$owner, $decoded_payload->repository->name,
-						'Info XML needs a GUID',
-						"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . UUID::get() . "</b>"
-					);
-				}
-				else {
-					EventLog::log( _t('Making post for GUID %s', array(trim($xml_object->guid))),'info');
-					self::make_post_from_XML( $xml_object );
-				}
-			}
-			else {
-				// Wrong number of xml files.
+			if ( count( $xml_urls ) !== 1 ) {
+				// Wrong number of XML files.
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
 					'Too many XML files',
 					"Habari addons should have a single XML file containing addon information.<br>"
 				);
+
+				// Cannot proceed without knowing which XML file to parse, so stop.
+				// This is separate from the other checks below which can (and should be able to) create multiple issues.
+				return;
+			}
+
+			$xml_URL = array_pop( $xml_urls );
+
+			$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
+
+			if ( $decoded_blob->encoding === 'base64' ) {
+				$xml_data = base64_decode( $decoded_blob->content );
+			}
+			else if ( $decoded_blob->encoding === 'utf-8' ) {
+				// does it need to be decoded?
+				// so far this hasn't happened in testing. $xml_data should be set to something, though, in case this logic is followed.
+				$xml_data = $decoded_blob->content;
+			}
+			else {
+				// there's an invalid encoding.
+				return;
+			}
+
+			$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
+/* can't hurt to hold onto these */
+			$xml_object->addChild( "xml_string", $xml_object->asXML() );
+/* won't always need these */
+			$xml_object->addChild( "tree_url", $tree_URL );
+			$xml_object->addChild( "blob_url", $xml_URL );
+			$xml_object->addChild( "ping_contents", $payload );
+
+/* might need this. Or should it go in downloadurl? */
+			$xml_object->addChild( "repo_url", $repo_URL );
+
+/* need to check if there's already a posts with this guid */
+			if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
+				// You must have a GUID or we can't find your plugin...
+				// @todo Send the owner an error message/file an issue on the repo
+				$this->file_issue(
+					$owner, $decoded_payload->repository->name,
+					'Info XML needs a GUID',
+					"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . UUID::get() . "</b>"
+				);
+			}
+			else {
+				EventLog::log( _t('Making post for GUID %s', array(trim($xml_object->guid))),'info');
+				self::make_post_from_XML( $xml_object );
 			}
 		}
 		else {
@@ -216,14 +221,7 @@ class PostReceive extends Plugin
 			list( $habari_version, $version_version ) = explode( "-", $version_version );
 		}
 
-
-$this->file_issue(
-	$owner, $decoded_payload->repository->name,
-	'temporary XML version checking thing',
-	"The version number specified in the XML file ({$xml->version}) and the one from the tag ({$matches[2]}) should match." . var_export( $matches )
-);
-
-
+/* For one thing, $this-> can't be used when not in object context.
 		// Handle version in tag, if present.
 		$tag_ref = json_decode( $xml->ping_contents )->ref;
 		if( $tag_ref !== "refs/head/master" ) {
@@ -242,7 +240,7 @@ $this->file_issue(
 				$version_version = $matches[4];
 			}
 		}
-
+*/
 		$versions = array(
 			(string) $xml->version => array(
 				'version' => $version_version,
