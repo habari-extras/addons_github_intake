@@ -42,46 +42,47 @@ class PostReceive extends Plugin
 		$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
 		$repo_URL = $decoded_payload->repository->url;
 
-			$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
-				"/" . $decoded_payload->repository->name . "/git/trees/$commit_sha";
+		$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
+			"/" . $decoded_payload->repository->name . "/git/trees/$commit_sha";
 
-			$decoded_tree = json_decode( file_get_contents( $tree_URL, 0, null, null ) );
-			$xml_urls = array_map( function( $a ) {
-					if ( strpos( $a->path, ".plugin.xml" ) !== false || $a->path === 'theme.xml' ) {
-						return$a->url; // path was just the filename, url is the API endpoint for the file itself
-					}
-				}, $decoded_tree->tree );
-			$xml_urls = array_filter( $xml_urls ); // remove NULLs
+		$decoded_tree = json_decode( file_get_contents( $tree_URL, 0, null, null ) );
+		$xml_urls = array_map(
+			function( $a ) {
+				if ( strpos( $a->path, ".plugin.xml" ) !== false || $a->path === 'theme.xml' ) {
+					return$a->url; // path was just the filename, url is the API endpoint for the file itself
+				}
+			}, $decoded_tree->tree );
+		$xml_urls = array_filter( $xml_urls ); // remove NULLs
 
-			if ( count( $xml_urls ) !== 1 ) {
-				// Wrong number of XML files.
-				$this->file_issue(
-					$owner, $decoded_payload->repository->name,
-					'Too many XML files',
-					"Habari addons should have a single XML file containing addon information.<br>"
-				);
+		if ( count( $xml_urls ) !== 1 ) {
+			// Wrong number of XML files.
+			$this->file_issue(
+				$owner, $decoded_payload->repository->name,
+				'Too many XML files',
+				"Habari addons should have a single XML file containing addon information.<br>"
+			);
 
-				// Cannot proceed without knowing which XML file to parse, so stop.
-				// This is separate from the other checks below which can (and should be able to) create multiple issues.
-				return;
-			}
+			// Cannot proceed without knowing which XML file to parse, so stop.
+			// This is separate from the other checks below which can (and should be able to) create multiple issues.
+			return;
+		}
 
-			$xml_URL = array_pop( $xml_urls );
+		$xml_URL = array_pop( $xml_urls );
 
-			$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
+		$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
 
-			if ( $decoded_blob->encoding === 'base64' ) {
-				$xml_data = base64_decode( $decoded_blob->content );
-			}
-			else if ( $decoded_blob->encoding === 'utf-8' ) {
-				// does it need to be decoded?
-				// so far this hasn't happened in testing. $xml_data should be set to something, though, in case this logic is followed.
-				$xml_data = $decoded_blob->content;
-			}
-			else {
-				// there's an invalid encoding.
-				return;
-			}
+		if ( $decoded_blob->encoding === 'base64' ) {
+			$xml_data = base64_decode( $decoded_blob->content );
+		}
+		else if ( $decoded_blob->encoding === 'utf-8' ) {
+			// does it need to be decoded?
+			// so far this hasn't happened in testing. $xml_data should be set to something, though, in case this logic is followed.
+			$xml_data = $decoded_blob->content;
+		}
+		else {
+			// there's an invalid encoding.
+			return;
+		}
 
 /* validate the xml string against the [current?] XSD */
 		$doc = new DomDocument;
