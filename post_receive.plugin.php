@@ -133,6 +133,63 @@ class PostReceive extends Plugin
 			$xml_is_OK = false;
 		}
 
+		// Grab the version, for later.
+		$habari_version = "?.?.?";
+		$version_version = (string) $xml_object->version; // just use $payload?
+		if( strpos( $version_version, "-" ) !== false ) {
+			// could replace the following with a preg_match( '%'.self::VERSION_REGEX.'%i'..., but is that altogether necessary?
+			list( $habari_version, $version_version ) = explode( "-", $version_version );
+		}
+
+		// If this ping is from a tag, check if the XML version matches the tag. 
+		// Handle version in tag, if present.
+		$tag_ref = json_decode( $xml_object->ping_contents )->ref;
+		
+$this->file_issue(
+$owner, $decoded_payload->repository->name,
+'Hey, look at this tag',"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$tag_ref}) should match.<br>"
+);
+		if( $tag_ref !== "refs/head/master" ) {
+			// only deal with tags in the version-number format. This likely ignores branches.
+			if( preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
+$this->file_issue(
+$owner, $decoded_payload->repository->name,
+'Hey, look at this tag again',"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$tag_ref}) should match.<br>{$matches[2]}<br>"
+);
+/*
+matches[2] is everything after /ref/tags.
+matches[3] would be the Habari version.
+matches[4] would be the addon's version.
+
+So if there's no - in the XML version, check against matches[4].
+*/
+				if( (string) $xml_object->version !== $matches[2] ) { // 2 is everything after ref/tags
+					$this->file_issue(
+						$owner, $decoded_payload->repository->name,
+						'XML/tag version mismatch',
+						"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$matches[2]}) should match."
+					);
+
+				$xml_is_OK = false;
+				}
+else {
+}
+			}
+			else { /* do we want to log an issue if the tag isn't following the standard? */
+				// return;
+			}
+		}
+
+		if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
+			$this->file_issue(
+				$owner, $decoded_payload->repository->name,
+				'Info XML needs a GUID',
+				"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
+			);
+			$xml_is_OK = false;
+		}
+
+
 
 /* need to check if there's already a posts with this guid */
 
@@ -267,14 +324,14 @@ class PostReceive extends Plugin
 		$tag_ref = json_decode( $xml->ping_contents )->ref;
 		if( $tag_ref !== "refs/head/master" ) {
 			// only deal with tags in the version-number format. This likely ignores branches.
-			if( preg_match( '%(ref/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
-//				if( $version_version !== $matches[2] ) { // 2 is everything after ref/tags
+			if( preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
+				if( $version_version !== $matches[2] ) { // 2 is everything after ref/tags
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
 						'XML/tag version mismatch',
 						"The version number specified in the XML file ({$xml->version}) and the one from the tag ({$matches[2]}) should match."
 					);
-//				}
+				}
 
 				// Now, do something with the version from the tag. The following lines replace any version set from the XML <version>
 				$habari_version = $matches[3];
