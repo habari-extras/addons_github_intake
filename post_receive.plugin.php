@@ -123,8 +123,6 @@ class PostReceive extends Plugin
 /* check XML problems */
 		$xml_is_OK = true;
 
-
-
 		// check if the XML includes a guid 
 		if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
 			$this->file_issue(
@@ -299,7 +297,7 @@ class PostReceive extends Plugin
 				'release' => '',
 			),
 		);
-		PluginDirectoryExtender::save_version( $post, $versions );
+		AddonsDirectory::save_versions( $post, $versions );
 	}
 
 	public static function configure() {
@@ -310,54 +308,6 @@ class PostReceive extends Plugin
 
 		$form->append( 'submit', 'save', _t( 'Save' ) );
 		return $form;
-	}
-}
-
-class PluginDirectoryExtender extends AddonsDirectory {
-
-	// This should only be running on a single version - commit should be for a single branch or master.
-
-	private static $vocabulary = "Addon versions";
-
-	public static function save_version( $post = null, $versions = array() ) {
-
-		if( isset( $post ) && count( $versions ) !== 0 ) {
-
-			$vocabulary = Vocabulary::get( self::$vocabulary );
-			$extant_terms = $vocabulary->get_associations($post->id, 'addon');
-
-			foreach( $versions as $key => $version ) {
-
-				$term_display = "{$post->id} {$key} {$post->info->repo_url}";
-
-				$found = false;
-				foreach($extant_terms as $eterm) {
-					if($eterm->term_display == $term_display) {  // This is super-cheesy!
-						$found = true;
-						$term = $eterm;
-						break;
-					}
-				}
-				if(!$found) {
-					$term = new Term( array(
-						'term_display' => $post->id . " $key",
-					) );
-				}
-				foreach ( $version as $field => $value ) {
-					$term->info->$field = $value;
-				}
-				if($found) {
-					$term->update();
-				}
-				else {
-					$vocabulary->add_term( $term );
-					$term->associate( 'addon', $post->id );
-				}
-			}
-		}
-		else {
-			// post didn't work or there was no version.
-		}
 	}
 }
 ?>
