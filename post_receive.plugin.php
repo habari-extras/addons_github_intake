@@ -85,11 +85,13 @@ class PostReceive extends Plugin
 
 /* validate the xml string against the [current?] XSD */
 		$doc = new DomDocument;
+
+		// Surpress errors outright - maybe better to handle them in some bulk fashion later.
+		set_error_handler( create_function( '$errno, $errstr, $errfile, $errline, $errcontext', '/* do nothing */' ) );
+
 		$doc->loadXML( $xml_data );
 
 		if( isset( $doc ) ) {
-/* Neither this nor @ kept the errors out of Habari's log. */
-// set_error_handler( create_function( '$errno, $errstr, $errfile, $errline, $errcontext', '/* do nothing */' ) );
 
 			// @TODO: Get this more intelligently. URL in an Option, maybe? Symlink to schema.hp.o in the filesystem?
 			if ( ! $doc->schemaValidate( dirname( __FILE__) . '/Pluggable-0.9.xsd' ) ) {
@@ -101,8 +103,8 @@ class PostReceive extends Plugin
 				// This is separate from the other checks below which can (and should be able to) create multiple issues.
 				return;
 			}
-// restore_error_handler();
 		}
+		restore_error_handler();
 
 		$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
 
