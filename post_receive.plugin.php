@@ -122,6 +122,7 @@ class PostReceive extends Plugin
 
 /* check XML problems */
 		$xml_is_OK = true;
+		$omit_version = false;
 
 		// check if the XML includes a guid 
 		if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
@@ -145,17 +146,19 @@ class PostReceive extends Plugin
 		// Handle version in tag, if present.
 		$tag_ref = json_decode( $xml_object->ping_contents )->ref;
 		
-$this->file_issue(
-$owner, $decoded_payload->repository->name,
-'Hey, look at this tag',"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$tag_ref}) should match.<br>"
-);
 		if( $tag_ref !== "refs/head/master" ) {
 			// only deal with tags in the version-number format. This likely ignores branches.
-			if( preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
-$this->file_issue(
-$owner, $decoded_payload->repository->name,
-'Hey, look at this tag again',"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$tag_ref}) should match.<br>{$matches[2]}<br>"
-);
+			if( ! preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
+					$this->file_issue(
+						$owner, $decoded_payload->repository->name,
+						'Unknown tag format',
+						// @TODO: Link this to a wiki page with more instructions & suggested format.
+						"Your tag ({$tag_ref}) is in an unsupported format. Please re-tag it with the specified format for inclusion in the directory.<br>If you were not tagging it for the directory this issue can be ignored."
+					);
+					// Do not store a version for this tag in the vocabulary.
+					$omit_version = true;
+			}
+			else {
 /*
 matches[2] is everything after /ref/tags.
 matches[3] would be the Habari version.
@@ -172,11 +175,6 @@ So if there's no - in the XML version, check against matches[4].
 
 				$xml_is_OK = false;
 				}
-else {
-}
-			}
-			else { /* do we want to log an issue if the tag isn't following the standard? */
-				// return;
 			}
 		}
 
