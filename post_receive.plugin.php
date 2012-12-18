@@ -180,16 +180,6 @@ else {
 			}
 		}
 
-		if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
-			$this->file_issue(
-				$owner, $decoded_payload->repository->name,
-				'Info XML needs a GUID',
-				"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
-			);
-			$xml_is_OK = false;
-		}
-
-
 
 /* need to check if there's already a posts with this guid */
 
