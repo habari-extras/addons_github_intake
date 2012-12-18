@@ -32,11 +32,15 @@ class PostReceive extends Plugin
 		$payload = $handler->handler_vars->raw('payload');
 		$decoded_payload = json_decode( $payload );
 
-		if ( isset( $decoded_payload ) ) {
-			// Invalid decoded JSON is NULL.
-			$commit_sha = $decoded_payload->after;
-			$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
-			$repo_URL = $decoded_payload->repository->url;
+		if ( !isset( $decoded_payload ) ) {
+			// Something has gone wrong with the json_decode. Do nothing, since there is nothing that can really be done.
+			return;
+		}
+
+		// Invalid decoded JSON is NULL.
+		$commit_sha = $decoded_payload->after;
+		$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
+		$repo_URL = $decoded_payload->repository->url;
 
 			$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
 				"/" . $decoded_payload->repository->name . "/git/trees/$commit_sha";
@@ -79,44 +83,76 @@ class PostReceive extends Plugin
 				return;
 			}
 
-			$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
-/* can't hurt to hold onto these */
-			$xml_object->addChild( "xml_string", $xml_object->asXML() );
-/* won't always need these */
-			$xml_object->addChild( "tree_url", $tree_URL );
-			$xml_object->addChild( "blob_url", $xml_URL );
-			$xml_object->addChild( "ping_contents", $payload );
+/* validate the xml string against the [current?] XSD */
+		$doc = new DomDocument;
+		$doc->loadXML( $xml_data );
 
-/* might need this. Or should it go in downloadurl? */
-			$xml_object->addChild( "repo_url", $repo_URL );
-
-/* need to check if there's already a posts with this guid */
-			if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
-				// You must have a GUID or we can't find your plugin...
-				// @todo Send the owner an error message/file an issue on the repo
+		if( isset( $doc ) ) {
+			// @TODO: Get this more intelligently. URL in an Option, maybe? Symlink to schema.hp.o in the filesystem?
+			if ( ! $doc->schemaValidate( dirname( __FILE__) . '/Pluggable-0.9.xsd' ) ) {
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
-					'Info XML needs a GUID',
-					"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . UUID::get() . "</b>"
+					'Invalid XML',
+					"Habari addons require a valid XML file.<br>Please fix yours. You can check it using the Habari Pluggable schema validator. http://schemas.habariproject.org/pluggable_validator.php"
 				);
-			}
-			else {
-				EventLog::log( _t('Making post for GUID %s', array(trim($xml_object->guid))),'info');
-				self::make_post_from_XML( $xml_object );
+				// This is separate from the other checks below which can (and should be able to) create multiple issues.
+				return;
 			}
 		}
-		else {
-			// Something has gone wrong with the json_decode. Do nothing, since there is nothing that can really be done.
+
+		$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
+
+/* can't hurt to hold onto these */
+		$xml_object->addChild( "xml_string", $xml_object->asXML() );
+/* won't always need these */
+		$xml_object->addChild( "tree_url", $tree_URL );
+		$xml_object->addChild( "blob_url", $xml_URL );
+		$xml_object->addChild( "ping_contents", $payload );
+
+/* might need this. Or should it go in downloadurl? */
+		$xml_object->addChild( "repo_url", $repo_URL );
+
+
+/* check XML problems */
+		$xml_is_OK = true;
+
+
+
+		// check if the XML includes a guid 
+		if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
+			$this->file_issue(
+				$owner, $decoded_payload->repository->name,
+				'Info XML needs a GUID',
+				"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . UUID::get() . "</b>"
+			);
+			$xml_is_OK = false;
+		}
+
+
+/* need to check if there's already a posts with this guid */
+
+		if( $xml_is_OK ) {
+			EventLog::log( _t('Making new post for GUID %s', array(trim($xml_object->guid))),'info');
+			self::make_post_from_XML( $xml_object );
 		}
 
 	}
 
 	public static function file_issue($user, $repo, $title, $body, $tag = 'bug') {
 		EventLog::log( _t('Filed issue for %s/%s - %s', array($user, $repo, $title)),'info');
-		$gitpassword = Options::get('habariupdatebot_password');
-		$rr = new RemoteRequest("https://HabariUpdateBot:{$gitpassword}@api.github.com/repos/{$user}/{$repo}/issues", 'POST');
+		$gitusername = Options::get('post_receive__bot_username');
+		$gitpassword = Options::get('post_receive__bot_password');
+		$rr = new RemoteRequest("https://{$gitusername}:{$gitpassword}@api.github.com/repos/{$user}/{$repo}/issues", 'POST');
 		$rr->set_body('{"title": "' . addslashes($title) . '","body": "' . addslashes($body) . '","labels":["' . addslashes($tag) . '"]}');
 		$rr->execute();
+	}
+
+	public static function create_addon_post( $info = array() ) {
+
+	}
+
+	public static function update_addon_post( $post = null, $info = array() ) {
+
 	}
 
 	public static function make_post_from_XML( $xml = null ) {
@@ -258,9 +294,19 @@ class PostReceive extends Plugin
 		);
 		PluginDirectoryExtender::save_version( $post, $versions );
 	}
+
+	public static function configure() {
+		$form = new FormUI( 'post_receive' );
+
+		$form->append( 'text', 'bot_username', 'option:post_receive__bot_username', 'Github issue posting username' );
+		$form->append( 'text', 'bot_password', 'option:post_receive__bot_password', 'Github issue posting password' );
+
+		$form->append( 'submit', 'save', _t( 'Save' ) );
+		return $form;
+	}
 }
 
-class PluginDirectoryExtender extends PluginDirectory {
+class PluginDirectoryExtender extends AddonsDirectory {
 
 	// This should only be running on a single version - commit should be for a single branch or master.
 
