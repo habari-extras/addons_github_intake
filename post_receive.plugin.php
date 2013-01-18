@@ -129,7 +129,16 @@ class PostReceive extends Plugin
 			$this->file_issue(
 				$owner, $decoded_payload->repository->name,
 				'Info XML needs a GUID',
-				"Habari addons require a GUID to be listed in the Addons Directory.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
+				"Habari addons require a GUID to be listed in the Addons Catalog.<br>Please create and add a GUID to your xml file. You can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
+			);
+			$xml_is_OK = false;
+		}
+
+		if ( preg_match( "/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i", strtolower( trim( $xml_object->guid ) ) ) === false ) {
+			$this->file_issue(
+				$owner, $decoded_payload->repository->name,
+				'Invalid GUID in Info XML',
+				"Habari addons require a RFC4122-compliant GUID to be listed in the Addons Catalog.<br>Please update the GUID in your xml file, or you can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
 			);
 			$xml_is_OK = false;
 		}
@@ -191,6 +200,14 @@ So if there's no - in the XML version, check against matches[4].
 
 
 /* need to check if there's already a posts with this guid */
+
+if ( AddonsDirectory::addon_exists( $xml_object->guid ) ) {
+	/* existing post */
+
+}
+else {
+	/* new post */
+}
 
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Making new post for GUID %s', array(trim($xml_object->guid))),'info');
