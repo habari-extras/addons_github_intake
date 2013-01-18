@@ -364,7 +364,7 @@ $info = array( 'type' => $type,
 		$form = new FormUI( 'post_receive' );
 
 		$form->append( 'text', 'bot_username', 'option:post_receive__bot_username', 'Github issue posting username' );
-		$form->append( 'text', 'bot_password', 'option:post_receive__bot_password', 'Github issue posting password' );
+		$form->append( 'password', 'bot_password', 'option:post_receive__bot_password', 'Github issue posting password' );
 
 		$form->append( 'submit', 'save', _t( 'Save' ) );
 		return $form;
