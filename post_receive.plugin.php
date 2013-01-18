@@ -134,7 +134,7 @@ class PostReceive extends Plugin
 			$xml_is_OK = false;
 		}
 
-		if ( preg_match( "/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i", strtolower( trim( $xml_object->guid ) ) ) === false ) {
+		if ( ! preg_match( "/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i", strtolower( trim( $xml_object->guid ) ) ) ) {
 			$this->file_issue(
 				$owner, $decoded_payload->repository->name,
 				'Invalid GUID in Info XML',
@@ -144,12 +144,12 @@ class PostReceive extends Plugin
 		}
 
 		// check for pluggable type
-		$type = (string) $xml_object->type;
+		$type = (string) $xml_object->attributes()->type;
 		if( $type !== 'plugin' && $type !== 'theme' ) { // check for 'locale' or 'core' or something else?
 			$this->file_issue(
 				$owner, $decoded_payload->repository->name,
 				'Unknown Pluggable type',
-				"Habari addons should be of type 'plugin' or 'theme'."
+				"Habari addons should be of type <b>plugin</b> or <b>theme</b>, not <b>{$type}</b>."
 			);
 			$xml_is_OK = false;
 		}
@@ -166,7 +166,7 @@ class PostReceive extends Plugin
 		// Handle version in tag, if present.
 		$tag_ref = json_decode( $xml_object->ping_contents )->ref;
 		
-		if( $tag_ref !== "refs/head/master" ) {
+		if( $tag_ref !== "refs/heads/master" ) {
 			// only deal with tags in the version-number format. This likely ignores branches.
 			if( ! preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
 					$this->file_issue(
@@ -224,9 +224,13 @@ $info = array( 'type' => $type,
 		EventLog::log( _t('Filed issue for %s/%s - %s', array($user, $repo, $title)),'info');
 		$gitusername = Options::get('post_receive__bot_username');
 		$gitpassword = Options::get('post_receive__bot_password');
-		$rr = new RemoteRequest("https://{$gitusername}:{$gitpassword}@api.github.com/repos/{$user}/{$repo}/issues", 'POST');
-		$rr->set_body('{"title": "' . addslashes($title) . '","body": "' . addslashes($body) . '","labels":["' . addslashes($tag) . '"]}');
-		$rr->execute();
+		try { 
+			$rr = new RemoteRequest("https://{$gitusername}:{$gitpassword}@api.github.com/repos/{$user}/{$repo}/issues", 'POST');
+			$rr->set_body('{"title": "' . addslashes($title) . '","body": "' . addslashes($body) . '","labels":["' . addslashes($tag) . '"]}');
+			$rr->execute();
+		} catch ( Exception $e ) {
+			EventLog::log( _t( 'Failed to file issue on %s/%s - %s: %s', array( $user, $repo, $title, $body )), 'err' );
+		}
 	}
 
 	public static function create_addon_post( $info = array() ) {
