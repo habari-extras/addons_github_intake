@@ -134,6 +134,17 @@ class PostReceive extends Plugin
 			$xml_is_OK = false;
 		}
 
+		// check for pluggable type
+		$type = (string) $xml_object->type;
+		if( $type !== 'plugin' && $type !== 'theme' ) { // check for 'locale' or 'core' or something else?
+			$this->file_issue(
+				$owner, $decoded_payload->repository->name,
+				'Unknown Pluggable type',
+				"Habari addons should be of type 'plugin' or 'theme'."
+			);
+			$xml_is_OK = false;
+		}
+
 		// Grab the version, for later.
 		$habari_version = "?.?.?";
 		$version_version = (string) $xml_object->version; // just use $payload?
@@ -183,6 +194,10 @@ So if there's no - in the XML version, check against matches[4].
 
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Making new post for GUID %s', array(trim($xml_object->guid))),'info');
+
+$info = array( 'type' => $type,
+				'guid' => (string) $xml_object->guid,
+);
 			self::make_post_from_XML( $xml_object );
 		}
 
