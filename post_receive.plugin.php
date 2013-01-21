@@ -28,6 +28,7 @@ class PostReceive extends Plugin
 	}
 
 	public function action_ajax_update( $handler ) {
+// put a hook here to notify that an update was received?
 		$users = Users::get();
 		$payload = $handler->handler_vars->raw('payload');
 		$decoded_payload = json_decode( $payload );
@@ -148,10 +149,28 @@ class PostReceive extends Plugin
 		if( $type !== 'plugin' && $type !== 'theme' ) { // check for 'locale' or 'core' or something else?
 			$this->file_issue(
 				$owner, $decoded_payload->repository->name,
-				'Unknown Pluggable type',
+				'Unknown Pluggable type in XML',
 				"Habari addons should be of type <b>plugin</b> or <b>theme</b>, not <b>{$type}</b>."
 			);
 			$xml_is_OK = false;
+		}
+
+		// check for a missing parent theme
+		if( $type === 'theme' ) {
+
+			// check isset first? trim?
+			$parent = (string) $xml->parent;
+
+			// now, check if the parent is already included. If not, log an issue.
+			if ( Post::get( array( 'title' => $parent, 'content_type' => Post::type( 'addon' ), 'status' => Post::status( 'published' ), 'all:info' => array( 'type' => 'theme' ), 'count' => 1 ) === 0 ) ) {
+				// @TODO: Check if it is a Habari core theme before filing the issue.
+				$this->file_issue(
+					$owner, $decoded_payload->repository->name,
+					'Unknown parent in XML',
+					"The parent theme ($parent) is not found in the Addons Catalog."
+				);
+			}
+			// do nothing with $xml_is_OK, just log the issue.
 		}
 
 		// Grab the version, for later.
@@ -161,6 +180,9 @@ class PostReceive extends Plugin
 			// could replace the following with a preg_match( '%'.self::VERSION_REGEX.'%i'..., but is that altogether necessary?
 			list( $habari_version, $version_version ) = explode( "-", $version_version );
 		}
+		$xml_object->addChild( "habari_version", $habari_version );
+		$xml_object->addChild( "version_version", $version_version );
+
 
 		// If this ping is from a tag, check if the XML version matches the tag. 
 		// Handle version in tag, if present.
@@ -212,9 +234,6 @@ else {
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Making new post for GUID %s', array(trim($xml_object->guid))),'info');
 
-$info = array( 'type' => $type,
-				'guid' => (string) $xml_object->guid,
-);
 			self::make_post_from_XML( $xml_object );
 		}
 
@@ -233,98 +252,29 @@ $info = array( 'type' => $type,
 		}
 	}
 
-	public static function create_addon_post( $info = array() ) {
-
-	}
-
-	public static function update_addon_post( $post = null, $info = array() ) {
-
-	}
-
 	public static function make_post_from_XML( $xml = null ) {
-		$guid = strtoupper($xml->guid);
-
-		$post = Post::get( array( 'status'=>Post::status('published'), 'all:info'=>array( 'guid'=>$guid ) ) );
-
-		$type = (string) $xml->attributes()->type; // 'plugin', 'theme'...
-
-		if ( $post !== false && $post->info->guid === $guid ) { // the latter test has not stopped posts from being overwritten
-			$post = Post::get( 'id=' . $post->id );
-			EventLog::log( _t('Editing post #%s - %s', array($post->id, $post->title)),'info');
-			$post->modify( array(
-				'title' => $xml->name,
-				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
-				'pubdate' => HabariDateTime::date_create(),
-				'slug' => Utils::slugify( $xml->name ),
-			) );
-			$post->update();
-			// Update the post instead of creating it.
-		}
-		else {
-			EventLog::log( _t('Creating a new post for %s', array((string)$xml->name)),'info');
-			// Post::get returned no post.
-			unset( $post );
-			$post = Post::create( array(
-				'content_type' => Post::type( 'addon' ),
-				'title' => $xml->name,
-				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
-				'status' => Post::status( 'published' ),
-				'tags' => array( $type ),
-				'pubdate' => HabariDateTime::date_create(),
-				'user_id' => User::get( 'github_hook' )->id,
-				'slug' => Utils::slugify( $xml->name ),
-			) );
-			// This won't change. It's not authoritative; merely the first one to ping in.
-			$post->info->original_repo = (string) $xml->repo_url;
-		}
-
 /* won't always need these */
-		$post->info->blob_url = (string) $xml->blob_url;
-		$post->info->tree_url = (string) $xml->tree_url;
-		$post->info->repo_url = (string) $xml->repo_url;
+		$info[ 'blob_url' ] = (string) $xml->blob_url;
+		$info[ 'tree_url' ] = (string) $xml->tree_url;
+		$info[ 'repo_url' ] = (string) $xml->repo_url;
 
-		$post->info->xml = (string) $xml->xml_string;
-		$post->info->json = (string) $xml->ping_contents;
-
-		$post->info->type = $type;
-		$post->info->guid = strtoupper($xml->guid);
-		$post->info->url = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
+		$info[ 'url' ] = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
 
 		if ( $type === "theme" && isset( $xml->parent ) ) {
 			// store the name of the parent theme, if there is one.
-			$parent = (string) $xml->parent;
-			$post->info->parent_theme = $parent;
-
-			// now, check if the parent is already included. If not, log an issue.
-			if ( Post::get( array( 'title' => $parent, 'count' => 1 ) === 0 ) ) {
-				// @TODO: Check if it is a Habari core theme before filing the issue.
-				$this->file_issue(
-					$owner, $decoded_payload->repository->name,
-					'Unknown parent',
-					"The parent theme ($parent) is not found."
-				);
-			}
+			$info[ 'parent' ] = (string) $xml->parent;
 		}
 
 		// This may be a dangerous assumption, but the first help value should be English and not "Configure".
-		$post->info->help = (string) $xml->help->value;
-
-		$temporary_array = array();
+		$info[ 'help' ] = (string) $xml->help->value;
 
 		foreach( $xml->author as $author ) {
-			array_push( $temporary_array, array( 'name' => (string) $author, 'url' => (string) $author->attributes()->url ) );
+			array_push( $info[ 'authors' ], array( 'name' => (string) $author, 'url' => (string) $author->attributes()->url ) );
 		}
-		$post->info->authors = $temporary_array;
-
-		$temporary_array = array();
 
 		foreach( $xml->license as $license ) {
-			array_push( $temporary_array, array( 'name' => (string) $license, 'url' => (string) $license->attributes()->url ) );
+			array_push( $info[ 'licenses' ], array( 'name' => (string) $license, 'url' => (string) $license->attributes()->url ) );
 		}
-
-		$post->info->licenses = $temporary_array;
-
-		$post->info->commit();
 
 		$features = array();
 		foreach( array( "conflicts", "provides", "recommends", "requires" ) as $feature ) {
@@ -343,42 +293,72 @@ $info = array( 'type' => $type,
 			list( $habari_version, $version_version ) = explode( "-", $version_version );
 		}
 
-/* For one thing, $this-> can't be used when not in object context.
-		// Handle version in tag, if present.
-		$tag_ref = json_decode( $xml->ping_contents )->ref;
-		if( $tag_ref !== "refs/head/master" ) {
-			// only deal with tags in the version-number format. This likely ignores branches.
-			if( preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
-				if( $version_version !== $matches[2] ) { // 2 is everything after ref/tags
-					$this->file_issue(
-						$owner, $decoded_payload->repository->name,
-						'XML/tag version mismatch',
-						"The version number specified in the XML file ({$xml->version}) and the one from the tag ({$matches[2]}) should match."
-					);
-				}
-
-				// Now, do something with the version from the tag. The following lines replace any version set from the XML <version>
-				$habari_version = $matches[3];
-				$version_version = $matches[4];
-			}
-		}
-*/
-		$versions = array(
+		$version = array(
 			(string) $xml->version => array(
 				'version' => $version_version,
 				'description' => (string) $xml->description,
 				'info_url' => (string) $xml->url, // dupe of above, not great.
-				'url' => "{$xml->repo_url}/downloads" , // this is bad - or at least, github-specific.
+				'url' => (string) $xml->repo_url, // this is bad - or at least, github-specific.
 				'habari_version' => $habari_version,
 				'severity' => 'feature', // hardcode for now
 				'requires' => isset( $features['requires'] ) ? $features['requires'] : '',
 				'provides' => isset( $features['provides'] ) ? $features['provides'] : '',
 				'recommends' => isset( $features['recommends'] ) ? $features['recommends'] : '',
 				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
-				'release' => '',
+				'release' => HabariDateTime::date_create(),
 			),
 		);
-		AddonsDirectory::save_versions( $post, $versions );
+
+		$guid = strtoupper( $xml->guid );
+
+		$post = AddonCatalogPlugin::get_addon( $guid );
+
+
+		/* THIS NEEDS TO CALL THE ADDONCATALOGPLUGIN UPDATE_ADDON() METHOD INSTEAD. */
+
+		if ( $post !== false && $post->info->guid === $guid ) { // the latter test has not stopped posts from being overwritten
+/*			$post = Post::get( 'id=' . $post->id );
+			EventLog::log( _t('Editing post #%s - %s', array($post->id, $post->title)),'info');
+			$post->modify( array(
+				'title' => $xml->name,
+				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
+				'pubdate' => HabariDateTime::date_create(),
+				'slug' => Utils::slugify( $xml->name ),
+			) );
+			$post->update();
+			// Update the post instead of creating it.
+
+		*/
+// hook update addon before
+			AddonCatalogPlugin::update_addon( $info, $version );
+// hook update addon after
+
+		}
+		else {
+// 			EventLog::log( _t('Creating a new post for %s', array((string)$xml->name)),'info');
+
+			$info[ 'user_id' ] = User::get( 'github_hook' )->id;
+			$info[ 'guid' ] = strtoupper( $xml->guid );
+			$info[ 'type' ] = $type;
+			$info[ 'name' ] = (string) $xml->name;
+			$info[ 'description' ] = (string) $xml->description;
+			
+			// This won't change. It's not authoritative; merely the first one to ping in.
+			$info[ 'original_repo' ] = (string) $xml->repo_url;
+
+			// Probably don't need to keep these two.
+			$info[ 'xml' ] = (string) $xml->xml_string;
+			$info[ 'json' ] = (string) $xml->ping_contents;
+
+			// Allow plugins to modify a new addon before it is created.
+			Plugins::act( 'addon_create_before', $info, $version );
+
+			AddonCatalogPlugin::create_addon( $info, $version );
+
+			// Allow plugins to act after a new addon has been created.
+			Plugins::act( 'addon_create_after', $info, $version );
+		}
+
 	}
 
 	public static function configure() {
