@@ -336,7 +336,7 @@ else {
 
 		*/
 // hook update addon before
-			AddonCatalogPlugin::update_addon( $info, $version );
+// 			AddonCatalogPlugin::update_addon( $info, $version );
 // hook update addon after
 
 		}
