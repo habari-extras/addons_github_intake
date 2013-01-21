@@ -150,7 +150,7 @@ class PostReceive extends Plugin
 			$this->file_issue(
 				$owner, $decoded_payload->repository->name,
 				'Unknown Pluggable type in XML',
-				"Habari addons should be of type <b>plugin</b> or <b>theme</b>, not <b>{$type}</b>."
+				"Habari addons should be of type <b>plugin</b> or <b>theme</b>, not <b>{SZ$type}</b>."
 			);
 			$xml_is_OK = false;
 		}
@@ -172,6 +172,8 @@ class PostReceive extends Plugin
 			}
 			// do nothing with $xml_is_OK, just log the issue.
 		}
+		$xml_object->addChild( "type", $type );
+
 
 		// Grab the version, for later.
 		$habari_version = "?.?.?";
@@ -223,7 +225,7 @@ So if there's no - in the XML version, check against matches[4].
 
 /* need to check if there's already a posts with this guid */
 
-if ( AddonsDirectory::addon_exists( $xml_object->guid ) ) {
+if ( AddonCatalogPlugin::addon_exists( $xml_object->guid ) ) {
 	/* existing post */
 
 }
@@ -257,10 +259,14 @@ else {
 		$info[ 'blob_url' ] = (string) $xml->blob_url;
 		$info[ 'tree_url' ] = (string) $xml->tree_url;
 		$info[ 'repo_url' ] = (string) $xml->repo_url;
+		$info[ 'type' ] = (string) $xml->type;
 
-		$info[ 'url' ] = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now
+		// There are probably many better things to insert here.
+		$info[ 'tags' ] = array( 'github', $info[ 'type' ] );
 
-		if ( $type === "theme" && isset( $xml->parent ) ) {
+		$info[ 'url' ] = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now. This seems to be the committer's URL.
+
+		if ( $info[ 'type' ] === "theme" && isset( $xml->parent ) ) {
 			// store the name of the parent theme, if there is one.
 			$info[ 'parent' ] = (string) $xml->parent;
 		}
@@ -269,11 +275,11 @@ else {
 		$info[ 'help' ] = (string) $xml->help->value;
 
 		foreach( $xml->author as $author ) {
-			array_push( $info[ 'authors' ], array( 'name' => (string) $author, 'url' => (string) $author->attributes()->url ) );
+			$info[ 'authors' ][] = array( 'name' => (string) $author, 'url' => (string) $author->attributes()->url );
 		}
 
 		foreach( $xml->license as $license ) {
-			array_push( $info[ 'licenses' ], array( 'name' => (string) $license, 'url' => (string) $license->attributes()->url ) );
+			$info[ 'licenses' ][] = array( 'name' => (string) $license, 'url' => (string) $license->attributes()->url );
 		}
 
 		$features = array();
@@ -339,7 +345,7 @@ else {
 
 			$info[ 'user_id' ] = User::get( 'github_hook' )->id;
 			$info[ 'guid' ] = strtoupper( $xml->guid );
-			$info[ 'type' ] = $type;
+// 			$info[ 'type' ] = $type;
 			$info[ 'name' ] = (string) $xml->name;
 			$info[ 'description' ] = (string) $xml->description;
 			
