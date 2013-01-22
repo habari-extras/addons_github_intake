@@ -134,16 +134,16 @@ class PostReceive extends Plugin
 			);
 			$xml_is_OK = false;
 		}
-
-		if ( ! preg_match( "/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i", strtolower( trim( $xml_object->guid ) ) ) ) {
-			$this->file_issue(
-				$owner, $decoded_payload->repository->name,
-				'Invalid GUID in Info XML',
-				"Habari addons require a RFC4122-compliant GUID to be listed in the Addons Catalog.<br>Please update the GUID in your xml file, or you can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
-			);
-			$xml_is_OK = false;
+		else {
+			if ( ! preg_match( "/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i", strtolower( trim( $xml_object->guid ) ) ) ) {
+				$this->file_issue(
+					$owner, $decoded_payload->repository->name,
+					'Invalid GUID in Info XML',
+					"Habari addons require a RFC4122-compliant GUID to be listed in the Addons Catalog.<br>Please update the GUID in your xml file, or you can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
+				);
+				$xml_is_OK = false;
+			}
 		}
-
 		// check for pluggable type
 		$type = (string) $xml_object->attributes()->type;
 		if( $type !== 'plugin' && $type !== 'theme' ) { // check for 'locale' or 'core' or something else?
@@ -222,17 +222,6 @@ So if there's no - in the XML version, check against matches[4].
 			}
 		}
 
-
-/* need to check if there's already a posts with this guid */
-
-if ( AddonCatalogPlugin::addon_exists( $xml_object->guid ) ) {
-	/* existing post */
-
-}
-else {
-	/* new post */
-}
-
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Making new post for GUID %s', array(trim($xml_object->guid))),'info');
 
@@ -254,7 +243,7 @@ else {
 		}
 	}
 
-	public static function make_post_from_XML( $xml = null ) {
+	public static function make_post_from_XML( $xml = null ) { // rename this function!
 /* won't always need these */
 		$info[ 'blob_url' ] = (string) $xml->blob_url;
 		$info[ 'tree_url' ] = (string) $xml->tree_url;
@@ -315,56 +304,25 @@ else {
 			),
 		);
 
-		$guid = strtoupper( $xml->guid );
-
-		$post = AddonCatalogPlugin::get_addon( $guid );
-
-
-		/* THIS NEEDS TO CALL THE ADDONCATALOGPLUGIN UPDATE_ADDON() METHOD INSTEAD. */
-
-		if ( $post !== false && $post->info->guid === $guid ) { // the latter test has not stopped posts from being overwritten
-/*			$post = Post::get( 'id=' . $post->id );
-			EventLog::log( _t('Editing post #%s - %s', array($post->id, $post->title)),'info');
-			$post->modify( array(
-				'title' => $xml->name,
-				'content' => $xml->description, //file_get_contents( dirname( $github_xml ) . '/README.md' ),
-				'pubdate' => HabariDateTime::date_create(),
-				'slug' => Utils::slugify( $xml->name ),
-			) );
-			$post->update();
-			// Update the post instead of creating it.
-
-		*/
-// hook update addon before
-// 			AddonCatalogPlugin::update_addon( $info, $version );
-// hook update addon after
-
-		}
-		else {
-// 			EventLog::log( _t('Creating a new post for %s', array((string)$xml->name)),'info');
-
-			$info[ 'user_id' ] = User::get( 'github_hook' )->id;
-			$info[ 'guid' ] = strtoupper( $xml->guid );
-// 			$info[ 'type' ] = $type;
-			$info[ 'name' ] = (string) $xml->name;
-			$info[ 'description' ] = (string) $xml->description;
+		$info[ 'user_id' ] = User::get( 'github_hook' )->id;
+		$info[ 'guid' ] = strtoupper( $xml->guid );
+		$info[ 'name' ] = (string) $xml->name;
+		$info[ 'description' ] = (string) $xml->description;
 			
-			// This won't change. It's not authoritative; merely the first one to ping in.
-			$info[ 'original_repo' ] = (string) $xml->repo_url;
+		// This won't change. It's not authoritative; merely the first one to ping in.
+		$info[ 'original_repo' ] = (string) $xml->repo_url;
 
-			// Probably don't need to keep these two.
-			$info[ 'xml' ] = (string) $xml->xml_string;
-			$info[ 'json' ] = (string) $xml->ping_contents;
+		// Probably don't need to keep these two.
+		$info[ 'xml' ] = (string) $xml->xml_string;
+		$info[ 'json' ] = (string) $xml->ping_contents;
 
-			// Allow plugins to modify a new addon before it is created.
-			Plugins::act( 'addon_create_before', $info, $version );
+		// Allow plugins to modify a new addon before it is created.
+		Plugins::act( 'handle_addon_before', $info, $version );
 
-			AddonCatalogPlugin::create_addon( $info, $version );
+		AddonCatalogPlugin::handle_addon( $info, $version );
 
-			// Allow plugins to act after a new addon has been created.
-			Plugins::act( 'addon_create_after', $info, $version );
-		}
-
+		// Allow plugins to act after a new addon has been created.
+		Plugins::act( 'handle_addon_after', $info, $version );
 	}
 
 	public static function configure() {
