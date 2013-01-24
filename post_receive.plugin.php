@@ -182,9 +182,6 @@ class PostReceive extends Plugin
 			// could replace the following with a preg_match( '%'.self::VERSION_REGEX.'%i'..., but is that altogether necessary?
 			list( $habari_version, $version_version ) = explode( "-", $version_version );
 		}
-		$xml_object->addChild( "habari_version", $habari_version );
-		$xml_object->addChild( "version_version", $version_version );
-
 
 		// If this ping is from a tag, check if the XML version matches the tag. 
 		// Handle version in tag, if present.
@@ -210,6 +207,9 @@ matches[4] would be the addon's version.
 
 So if there's no - in the XML version, check against matches[4].
 */
+				$habari_version = $matches[3];
+				$version_version = $matches[4];
+
 				if( (string) $xml_object->version !== $matches[2] && (string) $xml_object->version !== $matches[4] ) { // 2 is everything after ref/tags
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
@@ -221,6 +221,9 @@ So if there's no - in the XML version, check against matches[4].
 				}
 			}
 		}
+
+		$xml_object->addChild( "habari_version", $habari_version );
+		$xml_object->addChild( "version_version", $version_version );
 
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Successful XML import from GitHub for GUID %s', array(trim($xml_object->guid))),'info');
