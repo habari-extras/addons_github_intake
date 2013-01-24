@@ -223,7 +223,7 @@ So if there's no - in the XML version, check against matches[4].
 		}
 
 		if( $xml_is_OK ) {
-			EventLog::log( _t('Making new post for GUID %s', array(trim($xml_object->guid))),'info');
+			EventLog::log( _t('Successful XML import from GitHub for GUID %s', array(trim($xml_object->guid))),'info');
 
 			self::make_post_from_XML( $xml_object );
 		}
