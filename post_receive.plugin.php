@@ -210,7 +210,7 @@ matches[4] would be the addon's version.
 
 So if there's no - in the XML version, check against matches[4].
 */
-				if( (string) $xml_object->version !== $matches[2] ) { // 2 is everything after ref/tags
+				if( (string) $xml_object->version !== $matches[2] && (string) $xml_object->version !== $matches[4] ) { // 2 is everything after ref/tags
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
 						'XML/tag version mismatch',
