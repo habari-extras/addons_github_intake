@@ -284,20 +284,13 @@ So if there's no - in the XML version, check against matches[4].
 			}
 		}
 
-		$habari_version = "?.?.?";
-		$version_version = (string) $xml->version;
-		if( strpos( $version_version, "-" ) !== false ) {
-			// could replace the following with a preg_match( '%'.self::VERSION_REGEX.'%i'..., but is that altogether necessary?
-			list( $habari_version, $version_version ) = explode( "-", $version_version );
-		}
-
 		$version = array(
 			(string) $xml->version => array(
-				'version' => $version_version,
+				'version' => (string) $xml->version_version,
 				'description' => (string) $xml->description,
 				'info_url' => (string) $xml->url, // dupe of above, not great.
 				'url' => (string) $xml->repo_url, // this is bad - or at least, github-specific.
-				'habari_version' => $habari_version,
+				'habari_version' => (string) $xml->habari_version,
 				'severity' => 'feature', // hardcode for now
 				'requires' => isset( $features['requires'] ) ? $features['requires'] : '',
 				'provides' => isset( $features['provides'] ) ? $features['provides'] : '',
