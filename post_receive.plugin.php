@@ -31,6 +31,7 @@ class PostReceive extends Plugin
 // put a hook here to notify that an update was received?
 		$users = Users::get();
 		$payload = $handler->handler_vars->raw('payload');
+		$this->process_update($payload);
 	}
 
 	public function process_update($payload) {
