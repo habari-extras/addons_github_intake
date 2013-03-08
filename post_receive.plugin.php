@@ -311,7 +311,7 @@ So if there's no - in the XML version, check against matches[4].
 			),
 		);
 
-		$info[ 'user_id' ] = User::get( 'github_hook' )->id;
+		$info[ 'user_id' ] = ( isset($user_id) ) ? $user_id : User::get( 'github_hook' )->id;
 		$info[ 'guid' ] = strtoupper( $xml->guid );
 		$info[ 'name' ] = (string) $xml->name;
 		$info[ 'description' ] = (string) $xml->description;
@@ -362,6 +362,9 @@ So if there's no - in the XML version, check against matches[4].
 					return false;
 				}
 			}
+		}
+		else {
+			return $users[0]->id;
 		}
 	}
 	
