@@ -45,6 +45,7 @@ class PostReceive extends Plugin
 		// Invalid decoded JSON is NULL.
 		$commit_sha = $decoded_payload->after;
 		$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
+		$owner_mail = ( isset( $decoded_payload->repository->owner->email ) ) ? $decoded_payload->repository->owner->email : ""; // Users have an email, what about organizations?
 		$repo_URL = $decoded_payload->repository->url;
 
 		$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
@@ -232,7 +233,13 @@ So if there's no - in the XML version, check against matches[4].
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Successful XML import from GitHub for GUID %s', array(trim($xml_object->guid))),'info');
 
-			self::make_post_from_XML( $xml_object );
+			$owner_id = self::make_user_from_git( $owner, $owner_mail );
+			if($owner_id) {
+				self::make_post_from_XML( $xml_object, $owner_id );
+			}
+			else {
+				self::make_post_from_XML( $xml_object );
+			}
 		}
 
 	}
@@ -250,7 +257,7 @@ So if there's no - in the XML version, check against matches[4].
 		}
 	}
 
-	public static function make_post_from_XML( $xml = null ) { // rename this function!
+	public static function make_post_from_XML( $xml = null, $user_id = null ) { // rename this function!
 /* won't always need these */
 		$info[ 'blob_url' ] = (string) $xml->blob_url;
 		$info[ 'tree_url' ] = (string) $xml->tree_url;
@@ -325,6 +332,39 @@ So if there's no - in the XML version, check against matches[4].
 		Plugins::act( 'handle_addon_after', $info, $version );
 	}
 
+	public static function make_user_from_git( $name, $mail ) {
+		// Get Github user id
+		$request = new RemoteRequest("https://api.github.com/users/$name");
+		$request->execute();
+		if( ! $request->executed() ) {
+			throw new XMLRPCException( 16 );
+		}
+		$json_response = $request->get_response_body();
+		$jsondata = json_decode($json_response);
+		$id = $jsondata->id;
+		
+		// Check if there is already an account linked to that id
+		$users = Users::get( array( 'info' => array( 'servicelink_GitHub' => $id ) ) );
+		if( count( $users ) == 0 ) {
+			// Check if there is already an account with that name
+			$users = Users::get(array('username' => $name));
+			if( count( $users ) == 0 ) {
+				$user = new User();
+				$user->username = $name;
+				$user->email = $mail;
+				$user->info->servicelink_GitHub = $id;
+				if( $user->insert() ) {
+					// TODO: Send mail to user to inform him about the creation
+					Eventlog::log( "Created user $name and linked to GitHub id $id" );
+					return User::get_id( $name );
+				}
+				else {
+					return false;
+				}
+			}
+		}
+	}
+	
 	public static function configure() {
 		$form = new FormUI( 'post_receive' );
 
