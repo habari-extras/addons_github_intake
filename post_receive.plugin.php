@@ -6,13 +6,23 @@ class PostReceive extends Plugin
 	const VERSION_REGEX = '((?:\d+|alpha|beta|a|b|rc|p|pl)(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl))*(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl|x)))-((?:\d+|alpha|beta|a|b|rc|p|pl)(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl))*(?:\.(?:(?:\d+|alpha|beta|a|b|rc|p|pl|x)))(?:-\w+)?)';
 
 	public function action_plugin_activation( $file ) {
-		if( ! User::get_by_name( 'github_hook' ) ) {
-			User::create( array(
+		$user = User::get_by_name( 'github_hook' );
+		if( ! $user ) {
+			$user = User::create( array(
 				'username' => 'github_hook',
 				'email' => 'addons@habariproject.org',
 				'password' => sha1( rand( 0, pow( 2,32 ))),
 			));
 		}
+		
+		$group = UserGroup::get_by_name( 'github_users' );
+		if( ! $group ) {
+			$group = UserGroup::create( array( 'name' => 'github_users' ) );
+		}
+		
+		$group->grant( 'own_posts', 'full' );
+		
+		$user->add_to_group($group);
 	}
 
 	public function action_plugin_deactivation( $file ) {
@@ -349,14 +359,13 @@ So if there's no - in the XML version, check against matches[4].
 			// Check if there is already an account with that name
 			$users = Users::get(array('username' => $name));
 			if( count( $users ) == 0 ) {
-				$user = new User();
-				$user->username = $name;
-				$user->email = $mail;
-				$user->info->servicelink_GitHub = $id;
-				if( $user->insert() ) {
-					// TODO: Send mail to user to inform him about the creation
+				$user = User::create( array( 'username' => $name, 'email' => $mail) );
+				if( $user ) {
+					$user->info->servicelink_GitHub = $id;
+					$user->update();
+					$user->add_to_group( 'github_users' );
 					Eventlog::log( "Created user $name and linked to GitHub id $id" );
-					return User::get_id( $name );
+					return $user->id;
 				}
 				else {
 					return false;
