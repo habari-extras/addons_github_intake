@@ -45,6 +45,10 @@ class AddonsGithubIntake extends Plugin
 		// Invalid decoded JSON is NULL.
 		$commit_sha = $decoded_payload->after;
 		$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
+
+		// store the hash 'after' - it should be the latest commit among all the ones in this ping.
+		$commit_hash = $decoded_payload->after;
+
 		$repo_URL = $decoded_payload->repository->url;
 
 		$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
@@ -113,6 +117,9 @@ class AddonsGithubIntake extends Plugin
 		restore_error_handler();
 
 		$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
+
+/* must pass this along. */
+		$xml_object->addChild( "hash", $commit_hash );
 
 /* can't hurt to hold onto these */
 		$xml_object->addChild( "xml_string", $xml_object->asXML() );
@@ -290,6 +297,7 @@ So if there's no - in the XML version, check against matches[4].
 
 		$version = array(
 			(string) $xml->version => array(
+				'hash' => (string) $xml->hash,
 				'version' => (string) $xml->version_version,
 				'description' => (string) $xml->description,
 				'info_url' => (string) $xml->url, // dupe of above, not great.
