@@ -316,6 +316,7 @@ So if there's no - in the XML version, check against matches[4].
 		$info[ 'guid' ] = strtoupper( $xml->guid );
 		$info[ 'name' ] = (string) $xml->name;
 		$info[ 'description' ] = (string) $xml->description;
+		$info[ 'hoster' ] = 'GitHub';
 			
 		// This won't change. It's not authoritative; merely the first one to ping in.
 		$info[ 'original_repo' ] = (string) $xml->repo_url;
