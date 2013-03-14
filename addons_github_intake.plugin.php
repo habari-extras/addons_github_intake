@@ -4,6 +4,8 @@ class AddonsGithubIntake extends Plugin
 {
 	// this will be used with the /i option
 	const VERSION_REGEX = '((?:\d+|alpha|beta|a|b|rc|p|pl)(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl))*(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl|x)))-((?:\d+|alpha|beta|a|b|rc|p|pl)(?:\.(?:\d+|alpha|beta|a|b|rc|p|pl))*(?:\.(?:(?:\d+|alpha|beta|a|b|rc|p|pl|x)))(?:-\w+)?)';
+	
+	const HOSTER = "GitHub";
 
 	public function action_plugin_activation( $file ) {
 		if( ! User::get_by_name( 'github_hook' ) ) {
@@ -316,7 +318,7 @@ So if there's no - in the XML version, check against matches[4].
 		$info[ 'guid' ] = strtoupper( $xml->guid );
 		$info[ 'name' ] = (string) $xml->name;
 		$info[ 'description' ] = (string) $xml->description;
-		$info[ 'hoster' ] = 'GitHub';
+		$info[ 'hoster' ] = HOSTER;
 			
 		// This won't change. It's not authoritative; merely the first one to ping in.
 		$info[ 'original_repo' ] = (string) $xml->repo_url;
@@ -332,6 +334,16 @@ So if there's no - in the XML version, check against matches[4].
 
 		// Allow plugins to act after a new addon has been created.
 		Plugins::act( 'handle_addon_after', $info, $version );
+	}
+	
+	/*
+	 * This is actually a fake filter, because it does not accept values from other plugins that took this filter too
+	 * Still it is a good way to tell the Addon Catalog the command how to get repos from this hoster
+	 */
+	public function filter_addon_download_command( $hoster = "", $url = null ) {
+		if( $hoster == HOSTER ) {
+			return "git clone $url %s";
+		}
 	}
 
 	public static function configure() {
