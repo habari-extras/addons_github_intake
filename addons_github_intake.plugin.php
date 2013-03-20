@@ -190,7 +190,7 @@ class AddonsGithubIntake extends Plugin
 			// do nothing with $xml_is_OK, just log the issue.
 
 			// check isset first? trim?
-			$parent = (string) $xml->parent;
+			$parent = (string) $xml_object->parent;
 
 			// now, check if the parent is already included. If not, log an issue.
 			if ( Post::get( array( 'title' => $parent, 'content_type' => Post::type( 'addon' ), 'status' => Post::status( 'published' ), 'all:info' => array( 'type' => 'theme' ), 'count' => 1 ) === 0 ) ) {
