@@ -80,6 +80,13 @@ class AddonsGithubIntake extends Plugin
 
 		$xml_URL = array_pop( $xml_urls );
 
+		// let's grab a screenshot, if there is one.
+
+		$screenshot_URL = $repo_URL . "/screenshot.png";
+		if ( @fopen( $screenshot_URL, "r" ) !== true ) {
+			$screenshot_URL = null;
+		}
+
 		$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
 
 		if ( $decoded_blob->encoding === 'base64' ) {
@@ -122,6 +129,7 @@ class AddonsGithubIntake extends Plugin
 
 /* must pass this along. */
 		$xml_object->addChild( "hash", $commit_hash );
+		$xml_object->addChild( "screenshot_url", $screenshot_URL );
 
 /* can't hurt to hold onto these */
 		$xml_object->addChild( "xml_string", $xml_object->asXML() );
@@ -170,6 +178,16 @@ class AddonsGithubIntake extends Plugin
 
 		// check for a missing parent theme
 		if( $type === 'theme' ) {
+
+			// see if the screenshot is missing?
+			if ( is_null( $screenshot_URL ) ) {
+				$this->file_issue(
+					$owner, $decoded_payload->repository->name,
+					'Missing screenshot',
+					"Your theme needs to have a <b>screenshot.png</b>."
+				);
+			}
+			// do nothing with $xml_is_OK, just log the issue.
 
 			// check isset first? trim?
 			$parent = (string) $xml->parent;
