@@ -83,7 +83,7 @@ class AddonsGithubIntake extends Plugin
 		// let's grab a screenshot, if there is one.
 
 		$screenshot_URL = $repo_URL . "/screenshot.png";
-		if ( @fopen( $screenshot_URL, "r" ) !== true ) {
+		if ( @fopen( $screenshot_URL, "r" ) != true ) {
 			$screenshot_URL = null;
 		}
 
@@ -190,10 +190,10 @@ class AddonsGithubIntake extends Plugin
 			// do nothing with $xml_is_OK, just log the issue.
 
 			// check isset first? trim?
-			$parent = (string) $xml_object->parent;
+			$parent = (string) $xml_object->parent ?: false;
 
 			// now, check if the parent is already included. If not, log an issue.
-			if ( Post::get( array( 'title' => $parent, 'content_type' => Post::type( 'addon' ), 'status' => Post::status( 'published' ), 'all:info' => array( 'type' => 'theme' ), 'count' => 1 ) === 0 ) ) {
+			if ( $parent && Post::get( array( 'title' => $parent, 'content_type' => Post::type( 'addon' ), 'status' => Post::status( 'published' ), 'all:info' => array( 'type' => 'theme' ), 'count' => 1 ) === 0 ) ) {
 				// @TODO: Check if it is a Habari core theme before filing the issue.
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
@@ -278,6 +278,8 @@ So if there's no - in the XML version, check against matches[4].
 	}
 
 	public static function make_post_from_XML( $xml = null ) { // rename this function!
+
+		$info[ 'screenshot_url' ] = (string) $xml->screenshot_url;
 /* won't always need these */
 		$info[ 'blob_url' ] = (string) $xml->blob_url;
 		$info[ 'tree_url' ] = (string) $xml->tree_url;
