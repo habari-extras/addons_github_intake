@@ -333,6 +333,7 @@ So if there's no - in the XML version, check against matches[4].
 
 		$version = array(
 			(string) $xml->version => array(
+				'source' => self::HOSTER,
 				'hash' => (string) $xml->hash,
 				'version' => (string) $xml->version_version,
 				'description' => (string) $xml->description,
