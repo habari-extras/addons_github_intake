@@ -7,6 +7,8 @@ class AddonsGithubIntake extends Plugin
 	
 	const HOSTER = "GitHub";
 
+	const SCREENSHOT_DIR = "screenshots";
+
 	public function action_plugin_activation( $file ) {
 		if( ! User::get_by_name( 'github_hook' ) ) {
 			User::create( array(
@@ -82,9 +84,21 @@ class AddonsGithubIntake extends Plugin
 
 		// let's grab a screenshot, if there is one.
 
-		$screenshot_URL = $repo_URL . "/screenshot.png";
+		$screenshot_urls = array_map(
+			function( $a ) {
+				if ( strpos( $a->path, "screenshot.png" ) !== false ) {
+					return$a->url; // path was just the filename, url is the API endpoint for the file itself
+				}
+			}, $decoded_tree->tree );
+		$screenshot_urls = array_filter( $screenshot_urls ); // remove NULLs
+		$screenshot_URL = array_pop( $screenshot_urls );
+
+// there must be a better way to check if the file exists remotely. Really, this would just be checking if the JSON is there...
 		if ( @fopen( $screenshot_URL, "r" ) != true ) {
 			$screenshot_URL = null;
+		}
+		else {
+			$screenshot_URL = self::screenshot( $screenshot_URL, Utils::slugify( $decoded_payload->repository->name ) );
 		}
 
 		$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
@@ -375,5 +389,42 @@ So if there's no - in the XML version, check against matches[4].
 		$form->append( 'submit', 'save', _t( 'Save' ) );
 		return $form;
 	}
+
+	public static function screenshot( $json_url, $name ) {
+		// Starting with the JSON containing the encoding and the file, decode it and store it in the filesystem
+
+		$screenshot_path = HABARI_PATH . '/' . Site::get_path( 'user', true ) . "files/" . self::SCREENSHOT_DIR . '/';
+		$screenshot_url = Site::get_url( 'user', true ) . 'files/' . self::SCREENSHOT_DIR . '/';
+
+		// check if the directory exists (should this be moved to activation?)
+		if( ! is_dir( $screenshot_path ) ) {
+			// if not, create it (or log an error and return null)
+			if( ! mkdir( $screenshot_path ) ) {
+				EventLog::log( "Screenshot directory cannot be created.", 'err' );
+				return null;
+			}
+		}
+
+		$filename = $name . ".png";
+
+		$encoded_image = json_decode( file_get_contents( $json_url, 0, null, null ) );
+		$decoded_image = base64_decode( chunk_split( $encoded_image->content ) );
+		$fh = fopen( "{$screenshot_path}/{$filename}" , "wb" );
+		fwrite( $fh, $decoded_image );
+		fclose( $fh );
+
+		$screenshot_url .= $filename;
+
+		EventLog::log( "Screenshot stored $screenshot_url", 'info' );
+
+// there should be some sort of checking to make sure it worked, but what?
+		if ( true ) {
+			return $screenshot_url;
+		}
+
+		// return null if it didn't work
+		return null;
+	}
+
 }
 ?>
