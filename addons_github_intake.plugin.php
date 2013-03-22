@@ -207,7 +207,7 @@ class AddonsGithubIntake extends Plugin
 			$parent = (string) $xml_object->parent ?: false;
 
 			// now, check if the parent is already included. If not, log an issue.
-			if ( $parent && Post::get( array( 'title' => $parent, 'content_type' => Post::type( 'addon' ), 'status' => Post::status( 'published' ), 'all:info' => array( 'type' => 'theme' ), 'count' => 1 ) === 0 ) ) {
+			if ( $parent && ! Post::get( array( 'title' => $parent, 'content_type' => Post::type( 'addon' ), 'status' => Post::status( 'published' ), 'all:info' => array( 'type' => 'theme' ) ) ) ) {
 				// @TODO: Check if it is a Habari core theme before filing the issue.
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
