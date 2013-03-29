@@ -284,7 +284,9 @@ So if there's no - in the XML version, check against matches[4].
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Successful XML import from GitHub for GUID %s', array(trim($xml_object->guid))),'info');
 
-			$owner_id = self::make_user_from_git( $owner, $owner_mail );
+			// Create Habari user for the repo owner
+			$owner_habari_user = self::make_user_from_git( $owner, $owner_mail );
+			$xml_object->addChild( "GitHub_user_id", $owner_habari_user->info->servicelink_GitHub );
 			self::make_post_from_XML( $xml_object );
 		}
 
@@ -330,12 +332,15 @@ So if there's no - in the XML version, check against matches[4].
 				$user->update();
 				$user->add_to_group( 'github_users' );
 				Eventlog::log( "Created user $name and linked to GitHub id $id" );
-				return $user->id;
+				return $user;
 			}
 			else {
 				Eventlog::log( 'Creation of GitHub user $name failed', 'err' );
 				return false;
 			}
+		}
+		else {
+			return $users[0];
 		}
 	}
 
@@ -394,6 +399,7 @@ So if there's no - in the XML version, check against matches[4].
 				'recommends' => isset( $features['recommends'] ) ? $features['recommends'] : '',
 				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
 				'release' => HabariDateTime::date_create(),
+				'GitHub_user_id' => (string) $xml->GitHub_user_id,
 			),
 		);
 
