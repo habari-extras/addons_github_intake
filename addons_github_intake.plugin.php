@@ -10,13 +10,23 @@ class AddonsGithubIntake extends Plugin
 	const SCREENSHOT_DIR = "screenshots";
 
 	public function action_plugin_activation( $file ) {
-		if( ! User::get_by_name( 'github_hook' ) ) {
-			User::create( array(
+		$user = User::get_by_name( 'github_hook' );
+		if( ! $user ) {
+			$user = User::create( array(
 				'username' => 'github_hook',
 				'email' => 'addons@habariproject.org',
 				'password' => sha1( rand( 0, pow( 2,32 ))),
 			));
 		}
+
+		$group = UserGroup::get_by_name( 'github_users' );
+		if( ! $group ) {
+			$group = UserGroup::create( array( 'name' => 'github_users' ) );
+		}
+		
+		$group->grant( 'post_addon', 'read' );
+
+		$user->add_to_group($group);
 	}
 
 	public function action_plugin_deactivation( $file ) {
@@ -49,6 +59,7 @@ class AddonsGithubIntake extends Plugin
 		// Invalid decoded JSON is NULL.
 		$commit_sha = $decoded_payload->after;
 		$owner = ( isset( $decoded_payload->repository->organization ) ? $decoded_payload->repository->organization : $decoded_payload->repository->owner->name );
+		$owner_mail = ( isset( $decoded_payload->repository->owner->email ) ) ? $decoded_payload->repository->owner->email : ""; // Users have an email, what about organizations?
 
 		// store the hash 'after' - it should be the latest commit among all the ones in this ping.
 		$commit_hash = $decoded_payload->after;
@@ -273,6 +284,9 @@ So if there's no - in the XML version, check against matches[4].
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Successful XML import from GitHub for GUID %s', array(trim($xml_object->guid))),'info');
 
+			// Create Habari user for the repo owner
+			$owner_habari_user = self::make_user_from_git( $owner, $owner_mail );
+			$xml_object->addChild( "GitHub_user_id", $owner_habari_user->info->servicelink_GitHub );
 			self::make_post_from_XML( $xml_object );
 		}
 
@@ -288,6 +302,45 @@ So if there's no - in the XML version, check against matches[4].
 			$rr->execute();
 		} catch ( Exception $e ) {
 			EventLog::log( _t( 'Failed to file issue on %s/%s - %s: %s', array( $user, $repo, $title, $body )), 'err' );
+		}
+	}
+	
+	public static function make_user_from_git( $name, $mail ) {
+		// Get Github user id
+		$request = new RemoteRequest("https://api.github.com/users/$name");
+		$request->execute();
+		if( ! $request->executed() ) {
+			throw new XMLRPCException( 16 );
+		}
+		$json_response = $request->get_response_body();
+		$jsondata = json_decode($json_response);
+		$id = $jsondata->id;
+		
+		// Check if there is already an account linked to that id
+		$users = Users::get( array( 'info' => array( 'servicelink_GitHub' => $id ) ) );
+		if( count( $users ) == 0 ) {
+			// Check if there is already an account with that name
+			$users = Users::get(array('username' => $name));
+			// Append stuff until the name is unique. Let's hope there are not too many users named John Doe
+			while( count( $users ) != 0 ) {
+				$name .= "_1";
+				$users = Users::get(array('username' => $name));
+			}
+			$user = User::create( array( 'username' => $name, 'email' => $mail) );
+			if( $user ) {
+				$user->info->servicelink_GitHub = $id;
+				$user->update();
+				$user->add_to_group( 'github_users' );
+				Eventlog::log( "Created user $name and linked to GitHub id $id" );
+				return $user;
+			}
+			else {
+				Eventlog::log( 'Creation of GitHub user $name failed', 'err' );
+				return false;
+			}
+		}
+		else {
+			return $users[0];
 		}
 	}
 
@@ -346,6 +399,7 @@ So if there's no - in the XML version, check against matches[4].
 				'recommends' => isset( $features['recommends'] ) ? $features['recommends'] : '',
 				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
 				'release' => HabariDateTime::date_create(),
+				'GitHub_user_id' => (string) $xml->GitHub_user_id,
 			),
 		);
 
