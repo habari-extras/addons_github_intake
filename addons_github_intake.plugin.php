@@ -246,7 +246,7 @@ class AddonsGithubIntake extends Plugin
 		
 		if( $tag_ref !== "refs/heads/master" ) {
 			// only deal with tags in the version-number format. This likely ignores branches.
-			if( ! preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
+			if( strpos( $tag_ref, "refs/tags/" ) === 0 && ! preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
 						'Unknown tag format',
