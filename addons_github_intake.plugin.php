@@ -1,4 +1,5 @@
 <?php
+namespace Habari;
 
 class AddonsGithubIntake extends Plugin
 {
@@ -128,7 +129,7 @@ class AddonsGithubIntake extends Plugin
 		}
 
 /* validate the xml string against the [current?] XSD */
-		$doc = new DomDocument;
+		$doc = new \DomDocument;
 
 		// Surpress errors outright - maybe better to handle them in some bulk fashion later.
 		set_error_handler( create_function( '$errno, $errstr, $errfile, $errline, $errcontext', '/* do nothing */' ) );
@@ -398,7 +399,7 @@ So if there's no - in the XML version, check against matches[4].
 				'provides' => isset( $features['provides'] ) ? $features['provides'] : '',
 				'recommends' => isset( $features['recommends'] ) ? $features['recommends'] : '',
 				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
-				'release' => HabariDateTime::date_create(),
+				'release' => DateTime::date_create(),
 				'GitHub_user_id' => (string) $xml->GitHub_user_id,
 			),
 		);
