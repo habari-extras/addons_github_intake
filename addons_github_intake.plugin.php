@@ -245,8 +245,9 @@ class AddonsGithubIntake extends Plugin
 		$tag_ref = json_decode( $xml_object->ping_contents )->ref;
 		
 		if( $tag_ref !== "refs/heads/master" ) {
-			// only deal with tags in the version-number format. This likely ignores branches.
-			if( ! preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) && strpos( $tag_ref, "refs/tags/" ) === 0 ) {
+			if( strpos( $tag_ref, "refs/tags/" ) === 0 ) {
+				// only deal with tags in the version-number format. This likely ignores branches.
+				if( ! preg_match( '%(refs/tags/)(' . self::VERSION_REGEX . ')%i', $tag_ref, $matches ) ) {
 					$this->file_issue(
 						$owner, $decoded_payload->repository->name,
 						'Unknown tag format',
@@ -255,8 +256,8 @@ class AddonsGithubIntake extends Plugin
 					);
 					// Do not store a version for this tag in the vocabulary.
 					$omit_version = true;
-			}
-			else {
+				}
+				else {
 /*
 matches[2] is everything after /ref/tags.
 matches[3] would be the Habari version.
@@ -264,18 +265,22 @@ matches[4] would be the addon's version.
 
 So if there's no - in the XML version, check against matches[4].
 */
-				$habari_version = $matches[3];
-				$version_version = $matches[4];
+					$habari_version = $matches[3];
+					$version_version = $matches[4];
 
-				if( (string) $xml_object->version !== $matches[2] && (string) $xml_object->version !== $matches[4] ) { // 2 is everything after ref/tags
-					$this->file_issue(
-						$owner, $decoded_payload->repository->name,
-						'XML/tag version mismatch',
-						"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$matches[2]}) should match."
-					);
+					if( (string) $xml_object->version !== $matches[2] && (string) $xml_object->version !== $matches[4] ) { // 2 is everything after ref/tags
+						$this->file_issue(
+							$owner, $decoded_payload->repository->name,
+							'XML/tag version mismatch',
+							"The version number specified in the XML file ({$xml_object->version}) and the one from the tag ({$matches[2]}) should match."
+						);
 
-				$xml_is_OK = false;
+					$xml_is_OK = false;
+					}
 				}
+			}
+			else {
+				// it's probably a branch. We'll ignore it.
 			}
 		}
 
