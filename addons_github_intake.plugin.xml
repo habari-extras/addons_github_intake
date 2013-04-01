@@ -14,4 +14,5 @@
 		<value><![CDATA[<a href="http://help.github.com/post-receive-hooks/">Github Help Page</a>
 		]]></value>
 	</help>
+	<requires><feature>addon_catalog</feature></requires>
 </pluggable>
