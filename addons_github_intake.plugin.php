@@ -439,15 +439,16 @@ So if there's no - in the XML version, check against matches[4].
 		if( $hoster == self::HOSTER ) {
 			return "git clone $url %s";
 		}
+		return $hoster;
 	}
 
 	public static function configure() {
 		$form = new FormUI( 'post_receive' );
 
-		$form->append( 'text', 'bot_username', 'option:post_receive__bot_username', 'Github issue posting username' );
-		$form->append( 'password', 'bot_password', 'option:post_receive__bot_password', 'Github issue posting password' );
+		$form->append( FormControlText::create('bot_username', 'option:post_receive__bot_username')->label('Github issue posting username') );
+		$form->append( FormControlPassword::create('bot_password', 'option:post_receive__bot_password')->label( 'Github issue posting password' ) );
 
-		$form->append( 'submit', 'save', _t( 'Save' ) );
+		$form->append( FormControlSubmit::create('save')->set_caption( _t( 'Save' ) ) );
 		return $form;
 	}
 
