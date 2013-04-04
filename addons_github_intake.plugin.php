@@ -39,12 +39,6 @@ class AddonsGithubIntake extends Plugin
 	}
 
 	public function action_plugin_act_addon_update($handler) {
-		$this->action_ajax_update($handler);
-	}
-
-	public function action_ajax_update( $handler ) {
-// put a hook here to notify that an update was received?
-		$users = Users::get();
 		$payload = $handler->handler_vars->raw('payload');
 		$this->process_update($payload);
 	}
@@ -404,8 +398,10 @@ So if there's no - in the XML version, check against matches[4].
 				'provides' => isset( $features['provides'] ) ? $features['provides'] : '',
 				'recommends' => isset( $features['recommends'] ) ? $features['recommends'] : '',
 				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
-				'release' => DateTime::date_create(),
+				'release' => DateTime::create(),
 				'GitHub_user_id' => (string) $xml->GitHub_user_id,
+				'xml' => (string) $xml->xml_string,
+				'json' => (string) $xml->ping_contents,
 			),
 		);
 
@@ -417,10 +413,6 @@ So if there's no - in the XML version, check against matches[4].
 			
 		// This won't change. It's not authoritative; merely the first one to ping in.
 		$info[ 'original_repo' ] = (string) $xml->repo_url;
-
-		// Probably don't need to keep these two.
-		$info[ 'xml' ] = (string) $xml->xml_string;
-		$info[ 'json' ] = (string) $xml->ping_contents;
 
 		AddonCatalogPlugin::handle_addon( $info, $version );
 
