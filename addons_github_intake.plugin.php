@@ -384,8 +384,10 @@ So if there's no - in the XML version, check against matches[4].
 			}
 		}
 
+		$whole_version = $xml->habari_version . '-' . $xml->version_version;
+
 		$version = array(
-			(string) $xml->version => array(
+			(string) $whole_version => array(
 				'source' => self::HOSTER,
 				'hash' => (string) $xml->hash,
 				'version' => (string) $xml->version_version,
