@@ -305,7 +305,7 @@ So if there's no - in the XML version, check against matches[4].
 		try { 
 			$rr = new RemoteRequest("https://{$gitusername}:{$gitpassword}@api.github.com/repos/{$user}/{$repo}/issues", 'POST');
 			$rr->set_body('{"title": "' . addslashes($title) . '","body": "' . addslashes($body) . '","labels":["' . addslashes($tag) . '"]}');
-			$rr->execute();
+			//$rr->execute();
 		} catch ( Exception $e ) {
 			EventLog::log( _t( 'Failed to file issue on %s/%s - %s: %s', array( $user, $repo, $title, $body )), 'err' );
 		}
@@ -441,14 +441,65 @@ So if there's no - in the XML version, check against matches[4].
 		}
 	}
 
-	public static function configure() {
-		$form = new FormUI( 'post_receive' );
+	public function filter_plugin_config( $actions, $plugin_id ) {
+		if ( $plugin_id == $this->plugin_id() ) {
+			$actions['configure'] = _t("Configure");
+			$actions['detect'] = _t("Detect tags");
+		}
+		return $actions;
+	}
 
-		$form->append( 'text', 'bot_username', 'option:post_receive__bot_username', 'Github issue posting username' );
-		$form->append( 'password', 'bot_password', 'option:post_receive__bot_password', 'Github issue posting password' );
+	public function action_plugin_ui($plugin_id, $action) {
+		if ($plugin_id == $this->plugin_id() )
+		{
+			switch($action)
+			{
+				case 'configure':
+					// broken
+					$form = new FormUI( 'post_receive' );
 
-		$form->append( 'submit', 'save', _t( 'Save' ) );
-		return $form;
+					$form->append( 'text', 'bot_username', 'option:post_receive__bot_username', 'Github issue posting username' );
+					$form->append( 'password', 'bot_password', 'option:post_receive__bot_password', 'Github issue posting password' );
+
+					$form->append( 'submit', 'save', _t( 'Save' ) );
+					return $form;
+					break;
+				case "detect":
+					$form = new FormUI(__CLASS__);
+					$form->append(FormControlLabel::wrap("Fake-ping these repo:", FormControlText::create("repolist", "null:null")));
+					$form->append(FormControlSubmit::create('save')->set_caption('Save') );
+					$form->on_success(array($this, 'fake_ping'));
+					$form->out();
+					break;
+			}
+		}
+	}
+	
+	function fake_ping($form)
+	{
+		$request = new RemoteRequest("https://api.github.com/repos/" . $form->repolist->value . "/git/refs" . "?client_id=a09e168873984872fc9d&client_secret=77b5dec82d0cb28b630175217c34cc53dcf926b6");
+		$request->execute();
+		$refsjson = $request->get_response_body();
+		$refs = json_decode($refsjson);
+		$repo = explode('/', $form->repolist->value);
+		foreach($refs as $ref) {
+			if(substr($ref->ref, 0, 9) == "refs/tags") {
+				$fake["ref"] = $ref->ref;
+				// Get author name from the repo and mail from the commit
+				$rq = new RemoteRequest("https://api.github.com/repos/" . $form->repolist->value . "?access_token=ca781995289e89c3da83a115587733492103e9a5");
+				$rq->execute();
+				$repojson = $rq->get_response_body();
+				$repodata = json_decode($repojson);
+				$fake["repository"]["owner"]["name"] = $repodata->owner->login;
+				$fake["repository"]["owner"]["email"] = "importer@automatic.com";
+				$fake["repository"]["name"] = $repo[1];
+				$fake["repository"]["url"] = "http://github.com/repos/" . $form->repolist->value;
+				$fake["after"] = $ref->object->sha;
+				$request2 = new RemoteRequest(Site::get_url('site') . "/update", "POST");
+				$request2->set_postdata("payload", json_encode($fake));
+				$request2->execute();
+			}
+		}
 	}
 
 	public static function screenshot( $json_url, $name ) {
