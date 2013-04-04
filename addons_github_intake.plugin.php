@@ -164,7 +164,6 @@ class AddonsGithubIntake extends Plugin
 
 /* check XML problems */
 		$xml_is_OK = true;
-		$omit_version = false;
 
 		// check if the XML includes a guid 
 		if(!isset($xml_object->guid) || trim($xml_object->guid) == '') {
@@ -385,6 +384,8 @@ So if there's no - in the XML version, check against matches[4].
 		}
 
 		$whole_version = $xml->habari_version . '-' . $xml->version_version;
+
+		EventLog::log(_t('Creating Addon "%s" Version %s-%s as "%s"', array($xml->name, $xml->habari_version, $xml->version_version, $whole_version)));
 
 		$version = array(
 			(string) $whole_version => array(
