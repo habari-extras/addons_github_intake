@@ -422,24 +422,39 @@ So if there's no - in the XML version, check against matches[4].
 		$info[ 'xml' ] = (string) $xml->xml_string;
 		$info[ 'json' ] = (string) $xml->ping_contents;
 
-		// Allow plugins to modify a new addon before it is created.
-		Plugins::act( 'handle_addon_before', $info, $version );
-
 		AddonCatalogPlugin::handle_addon( $info, $version );
 
-		// Allow plugins to act after a new addon has been created.
-		Plugins::act( 'handle_addon_after', $info, $version );
 	}
 	
-	/*
-	 * This is actually a fake filter, because it does not accept values from other plugins that took this filter too
-	 * Still it is a good way to tell the Addon Catalog the command how to get repos from this hoster
+	/**
+	 * Put the plugin files for the indicated version into a specific directory, if this plugin handles it
 	 */
-	public function filter_addon_download_command( $hoster = "", $url = null ) {
-		if( $hoster == self::HOSTER ) {
-			return "git clone $url %s";
+	public function action_addon_download( $source, $addon, $term, $tmp_dir ) {
+		if( $source == self::HOSTER ) {
+			$url = $term->info->url;
+			$command = "git clone {$url} {$tmp_dir}";
+			exec($command);
+
+			// Checkout a tag
+			$habari_version = $term->info->habari_version;
+			$version = $term->info->version;
+			$rev = 'master';
+			if($habari_version != '?.?.?') {
+				//exec('cd ' . $tmp_dir);
+				chdir($tmp_dir);
+				$rev = $habari_version . '-' . $version;
+				exec('git checkout ' . escapeshellarg($rev));
+			}
+
+			$site = Site::get_url('site');
+			$date = DateTime::create()->format('Y-m-d @ H:i:s');
+
+			$package = <<< PACKAGE_REV
+This download was packaged by {$site} on {$date} from {$url} revision {$rev}.
+PACKAGE_REV;
+
+			file_put_contents(Utils::end_in_slash($tmp_dir) . '__package.rev', $package);
 		}
-		return $hoster;
 	}
 
 	public static function configure() {
