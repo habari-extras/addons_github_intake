@@ -99,7 +99,7 @@ class AddonsGithubIntake extends Plugin
 		$screenshot_urls = array_filter( $screenshot_urls ); // remove NULLs
 		$screenshot_URL = array_pop( $screenshot_urls );
 
-// there must be a better way to check if the file exists remotely. Really, this would just be checking if the JSON is there...
+		// there must be a better way to check if the file exists remotely. Really, this would just be checking if the JSON is there...
 		if ( @fopen( $screenshot_URL, "r" ) != true ) {
 			$screenshot_URL = null;
 		}
@@ -122,7 +122,7 @@ class AddonsGithubIntake extends Plugin
 			return;
 		}
 
-/* validate the xml string against the [current?] XSD */
+		/* validate the xml string against the [current?] XSD */
 		$doc = new \DomDocument;
 
 		// Surpress errors outright - maybe better to handle them in some bulk fashion later.
@@ -147,22 +147,22 @@ class AddonsGithubIntake extends Plugin
 
 		$xml_object = simplexml_load_string( $xml_data, 'SimpleXMLElement' );
 
-/* must pass this along. */
+		/* must pass this along. */
 		$xml_object->addChild( "hash", $commit_hash );
 		$xml_object->addChild( "screenshot_url", $screenshot_URL );
 
-/* can't hurt to hold onto these */
+		/* can't hurt to hold onto these */
 		$xml_object->addChild( "xml_string", $xml_object->asXML() );
-/* won't always need these */
+		/* won't always need these */
 		$xml_object->addChild( "tree_url", $tree_URL );
 		$xml_object->addChild( "blob_url", $xml_URL );
 		$xml_object->addChild( "ping_contents", $payload );
 
-/* might need this. Or should it go in downloadurl? */
+		/* might need this. Or should it go in downloadurl? */
 		$xml_object->addChild( "repo_url", $repo_URL );
 
 
-/* check XML problems */
+		/* check XML problems */
 		$xml_is_OK = true;
 
 		// check if the XML includes a guid 
@@ -346,14 +346,22 @@ So if there's no - in the XML version, check against matches[4].
 	public static function make_post_from_XML( $xml = null ) { // rename this function!
 
 		$info[ 'screenshot_url' ] = (string) $xml->screenshot_url;
-/* won't always need these */
+		/* won't always need these */
 		$info[ 'blob_url' ] = (string) $xml->blob_url;
 		$info[ 'tree_url' ] = (string) $xml->tree_url;
 		$info[ 'repo_url' ] = (string) $xml->repo_url;
 		$info[ 'type' ] = (string) $xml->type;
 
+		$tags = array( 'github', $info[ 'type' ] );
+
+		if( isset($xml->tag) ) {
+			foreach( $xml->tag as $tag ) {
+				$tags[] = $tag;
+			}
+		}
+				
 		// There are probably many better things to insert here.
-		$info[ 'tags' ] = array( 'github', $info[ 'type' ] );
+		$info[ 'tags' ] = $tags;
 
 		$info[ 'url' ] = (string) $xml->url; // or maybe dirname( $github_xml ); // not right but OK for now. This seems to be the committer's URL.
 
