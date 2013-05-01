@@ -67,7 +67,9 @@ echo "Update processed.\n\n";
 			"/" . $decoded_payload->repository->name . "/git/trees/$commit_sha";
 echo "Tree URL: $tree_URL\n\n";
 
-		$decoded_tree = json_decode( RemoteRequest::get_contents($tree_URL) );
+		$tree_data = self::github_request("/repos/{$owner}/{$decoded_payload->repository->name}/git/trees/{$commit_sha}", '', 'GET');
+
+		$decoded_tree = json_decode( $tree_data );
 echo "Decoded Tree: " . var_export($decoded_tree,1) . "\n\n";
 
 
@@ -323,6 +325,36 @@ echo "Final versions: Habari {$habari_version}, Pluggable {$version_version}\n\n
 
 	}
 
+	public static function github_request($url, $data = null, $verb = null) {
+		$gitusername = Options::get('post_receive__bot_username');
+		$gitpassword = Options::get('post_receive__bot_password');
+		if(is_object($data)) {
+			$data = json_encode($data);
+		}
+		try { 
+			$full_url = "https://{$gitusername}:{$gitpassword}@api.github.com{$url}";
+//echo "RR URL: {$full_url}\n\n";
+			$rr = new RemoteRequest($full_url, $verb);
+			if(is_null($verb)) {
+				if(is_null($data)) {
+					$verb = 'GET';
+				}
+				else {
+					$verb = 'POST';
+				}
+			}
+			if($verb != 'GET') {
+				$rr->set_body($data);
+			}
+			$rr->execute();
+echo "github_request: {$url} \n\n";
+echo "  response headers: " . var_export($rr->get_response_headers(),1) . "\n\n";
+			return $rr->get_response_body();
+		} catch ( Exception $e ) {
+			EventLog::log( _t( 'Failed to make github api request to %s', array( $url )), 'err' );
+		}
+	}
+
 	public static function file_issue($user, $repo, $title, $body, $tag = 'bug') {
 		EventLog::log( _t('Filed issue for %s/%s - %s', array($user, $repo, $title)),'info');
 		$gitusername = Options::get('post_receive__bot_username');
@@ -338,12 +370,15 @@ echo "Final versions: Habari {$habari_version}, Pluggable {$version_version}\n\n
 	
 	public static function make_user_from_git( $name, $mail ) {
 		// Get Github user id
+/*
 		$request = new RemoteRequest("https://api.github.com/users/$name");
 		$request->execute();
 		if( ! $request->executed() ) {
 			throw new XMLRPCException( 16 );
 		}
 		$json_response = $request->get_response_body();
+*/
+		$json_response = self::github_request("/users/{$name}");
 		$jsondata = json_decode($json_response);
 		$id = $jsondata->id;
 		
