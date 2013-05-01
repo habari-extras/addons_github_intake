@@ -40,12 +40,14 @@ class AddonsGithubIntake extends Plugin
 
 	public function action_plugin_act_addon_update($handler) {
 		$payload = $handler->handler_vars->raw('payload');
+echo "Start process_update.\n\n";
 		$this->process_update($payload);
+echo "Update processed.\n\n";
 	}
 
 	public function process_update($payload) {
 		$decoded_payload = json_decode( $payload );
-
+//echo "Payload:\n$payload\n\n";
 		if ( !isset( $decoded_payload ) ) {
 			// Something has gone wrong with the json_decode. Do nothing, since there is nothing that can really be done.
 			return;
@@ -63,8 +65,12 @@ class AddonsGithubIntake extends Plugin
 
 		$tree_URL = "https://api.github.com/repos/" . $owner . // what if it's a user?
 			"/" . $decoded_payload->repository->name . "/git/trees/$commit_sha";
+echo "Tree URL: $tree_URL\n\n";
 
-		$decoded_tree = json_decode( file_get_contents( $tree_URL, 0, null, null ) );
+		$decoded_tree = json_decode( RemoteRequest::get_contents($tree_URL) );
+echo "Decoded Tree: " . var_export($decoded_tree,1) . "\n\n";
+
+
 		$xml_urls = array_map(
 			function( $a ) {
 				if ( strpos( $a->path, ".plugin.xml" ) !== false || $a->path === 'theme.xml' ) {
@@ -72,14 +78,27 @@ class AddonsGithubIntake extends Plugin
 				}
 			}, $decoded_tree->tree );
 		$xml_urls = array_filter( $xml_urls ); // remove NULLs
+echo "XML URLs: " . var_export($xml_urls,1) . "\n\n";
 
-		if ( count( $xml_urls ) !== 1 ) {
-			// Wrong number of XML files.
+		if ( count( $xml_urls ) > 1 ) {
 			$this->file_issue(
 				$owner, $decoded_payload->repository->name,
 				'Too many XML files',
 				"Habari addons should have a single XML file containing addon information.<br>"
 			);
+			EventLog::log('XML not found/too many', 'info', 'intake', null, $payload);
+
+			// Cannot proceed without knowing which XML file to parse, so stop.
+			// This is separate from the other checks below which can (and should be able to) create multiple issues.
+			return;
+		}
+		elseif(count($xml_urls) == 0) {
+			$this->file_issue(
+				$owner, $decoded_payload->repository->name,
+				'No XML file found',
+				"Habari addons should have a single XML file containing addon information.<br>"
+			);
+			EventLog::log('XML not found/too many', 'info', 'intake', null, $payload);
 
 			// Cannot proceed without knowing which XML file to parse, so stop.
 			// This is separate from the other checks below which can (and should be able to) create multiple issues.
@@ -107,7 +126,7 @@ class AddonsGithubIntake extends Plugin
 			$screenshot_URL = self::screenshot( $screenshot_URL, Utils::slugify( $decoded_payload->repository->name ) );
 		}
 
-		$decoded_blob = json_decode( file_get_contents( $xml_URL, 0, null, null ) );
+		$decoded_blob = json_decode( RemoteRequest::get_contents($xml_URL) );
 
 		if ( $decoded_blob->encoding === 'base64' ) {
 			$xml_data = base64_decode( $decoded_blob->content );
@@ -179,7 +198,7 @@ class AddonsGithubIntake extends Plugin
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
 					'Invalid GUID in Info XML',
-					"Habari addons require a RFC4122-compliant GUID to be listed in the Addons Catalog.<br>Please update the GUID in your xml file, or you can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
+					"Habari addons require a RFC4122-compliant GUID to be listed in the Addons Catalog.<br>The GUID found in the XML, {$xml_object->guid}, is not a valid GUID according to the RFC.  Please update the GUID in your xml file, or you can use this one, which is new:<br><b>" . strtoupper( UUID::get() ) . "</b>"
 				);
 				$xml_is_OK = false;
 			}
@@ -228,14 +247,18 @@ class AddonsGithubIntake extends Plugin
 		// Grab the version, for later.
 		$habari_version = "?.?.?";
 		$version_version = (string) $xml_object->version; // just use $payload?
+echo "Version version: {$version_version}\n\n";
 		if( strpos( $version_version, "-" ) !== false ) {
 			// could replace the following with a preg_match( '%'.self::VERSION_REGEX.'%i'..., but is that altogether necessary?
 			list( $habari_version, $version_version ) = explode( "-", $version_version );
 		}
+echo "Habari version: {$habari_version}\n\n";
+echo "Version version, reduced: {$version_version}\n\n";
 
 		// If this ping is from a tag, check if the XML version matches the tag. 
 		// Handle version in tag, if present.
 		$tag_ref = json_decode( $xml_object->ping_contents )->ref;
+echo "Tag ref: {$tag_ref}\n\n";
 		
 		if( $tag_ref !== "refs/heads/master" ) {
 			if( strpos( $tag_ref, "refs/tags/" ) === 0 ) {
@@ -258,6 +281,7 @@ matches[4] would be the addon's version.
 
 So if there's no - in the XML version, check against matches[4].
 */
+echo "Refs matches:" . var_export($matches,1) . "\n\n";
 					$habari_version = $matches[3];
 					$version_version = $matches[4];
 
@@ -279,6 +303,14 @@ So if there's no - in the XML version, check against matches[4].
 
 		$xml_object->addChild( "habari_version", $habari_version );
 		$xml_object->addChild( "version_version", $version_version );
+
+
+		/* store the owner */
+		$xml_object->addChild( "owner", json_decode( $xml_object->ping_contents )->repository->owner->name );
+
+
+echo "Final versions: Habari {$habari_version}, Pluggable {$version_version}\n\n";
+//echo $xml_object
 
 		if( $xml_is_OK ) {
 			EventLog::log( _t('Successful XML import from GitHub for GUID %s', array(trim($xml_object->guid))),'info');
@@ -393,6 +425,7 @@ So if there's no - in the XML version, check against matches[4].
 
 		$whole_version = $xml->habari_version . '-' . $xml->version_version;
 
+
 		EventLog::log(_t('Creating Addon "%s" Version %s-%s as "%s"', array($xml->name, $xml->habari_version, $xml->version_version, $whole_version)));
 
 		$version = array(
@@ -411,6 +444,7 @@ So if there's no - in the XML version, check against matches[4].
 				'conflicts' => isset( $features['conflicts'] ) ? $features['conflicts'] : '',
 				'release' => DateTime::create(),
 				'GitHub_user_id' => (string) $xml->GitHub_user_id,
+				'owner' => (string) $xml->owner,
 				'xml' => (string) $xml->xml_string,
 				'json' => (string) $xml->ping_contents,
 			),
@@ -424,6 +458,10 @@ So if there's no - in the XML version, check against matches[4].
 			
 		// This won't change. It's not authoritative; merely the first one to ping in.
 		$info[ 'original_repo' ] = (string) $xml->repo_url;
+
+//echo "Info passed to handle_addon:\n\n";
+//var_dump($info);
+//var_dump($version);
 
 		AddonCatalogPlugin::handle_addon( $info, $version );
 
@@ -487,7 +525,7 @@ PACKAGE_REV;
 
 		$filename = $name . ".png";
 
-		$encoded_image = json_decode( file_get_contents( $json_url, 0, null, null ) );
+		$encoded_image = json_decode( RemoteRequest::get_contents($json_url) );
 		$decoded_image = base64_decode( chunk_split( $encoded_image->content ) );
 		$fh = fopen( "{$screenshot_path}/{$filename}" , "wb" );
 		fwrite( $fh, $decoded_image );
