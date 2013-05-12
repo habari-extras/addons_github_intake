@@ -113,7 +113,7 @@ echo "XML URLs: " . var_export($xml_urls,1) . "\n\n";
 
 		$screenshot_urls = array_map(
 			function( $a ) {
-				if ( strpos( $a->path, "screenshot.png" ) !== false ) {
+				if ( strpos( $a->path, "screenshot." ) !== false ) {
 					return$a->url; // path was just the filename, url is the API endpoint for the file itself
 				}
 			}, $decoded_tree->tree );
@@ -224,7 +224,7 @@ echo "XML URLs: " . var_export($xml_urls,1) . "\n\n";
 				$this->file_issue(
 					$owner, $decoded_payload->repository->name,
 					'Missing screenshot',
-					"Your theme needs to have a <b>screenshot.png</b>."
+					"Your theme needs to have a screenshot."
 				);
 			}
 			// do nothing with $xml_is_OK, just log the issue.
